@@ -11,6 +11,7 @@ ArkType, and other Standard Schema v1 validators, including async validation.
 - [Automatic names with Vite](#automatic-names-with-vite)
 - [Lint rules](#lint-rules)
   - [Recommended configuration](#recommended-configuration)
+  - [`operandi/newline-per-chained-call`](#operandinewline-per-chained-call)
   - [`operandi/multiline-steps`](#operandimultiline-steps)
   - [`operandi/multiline-schema`](#operandimultiline-schema)
   - [`operandi/step-name-starts-with-lowercase`](#operandistep-name-starts-with-lowercase)
@@ -496,7 +497,7 @@ ESLint installation; it is a JavaScript plugin, not a compiled Rust rule.
 
 Both entry points export `recommended`, also available as
 `operandi.configs.recommended` on their default plugin export. Each preset enables
-all four rules at error severity with their default options. The recommended
+all five rules at error severity with their default options. The recommended
 step-name ignore list is empty; add your own exceptions when needed.
 
 For ESLint flat config:
@@ -536,6 +537,31 @@ For Vite+, use `defineConfig({ lint: recommended })`. The Oxlint preset includes
 `jsPlugins` and `rules`; spread it into an existing config and merge any existing
 plugin registrations and rule overrides. JSON-only configurations can use the
 explicit rule settings shown below.
+
+### `operandi/newline-per-chained-call`
+
+Requires each chained Operandi method call to start on a new line, including the
+first method after `createAction()` or `createActionMiddleware()`:
+
+```typescript
+// Reported:
+createAction("Complete GitHub Connection").use(WithTransaction).use(RequireWorkspace)
+
+// Allowed:
+createAction("Complete GitHub Connection").use(WithTransaction).use(RequireWorkspace)
+```
+
+It checks schema, composition, step, and lifecycle methods, plus `.run()` and
+`.runSafe()` when chained after a builder call. The dot (or computed-access
+bracket) must start after the previous call's closing line. Multiline arguments
+alone do not satisfy this rule. Standalone calls such as `action.run()` and
+`base.use(middleware)` are allowed; `base.use(first).use(second)` is reported.
+
+The rule supports the same `importSources` option, aliases, and binding detection
+as `multiline-steps`. It ignores unrelated chains, schema-validator chains, and
+promise methods such as `.then()`. It reports violations without autofixing.
+If your formatter collapses a short chain, preserve its layout with the
+formatter's ignore directive.
 
 ### `operandi/multiline-steps`
 
@@ -658,6 +684,7 @@ export default [
   {
     plugins: { operandi },
     rules: {
+      "operandi/newline-per-chained-call": "error",
       "operandi/multiline-steps": "error",
       "operandi/multiline-schema": "error",
       "operandi/step-name-starts-with-lowercase": ["error", { ignore: ["API", "GraphQL"] }],
@@ -673,6 +700,7 @@ For Oxlint, add this to `.oxlintrc.json`:
 {
   "jsPlugins": [{ "name": "operandi", "specifier": "operandi/oxlint" }],
   "rules": {
+    "operandi/newline-per-chained-call": "error",
     "operandi/multiline-steps": "error",
     "operandi/multiline-schema": "error",
     "operandi/step-name-starts-with-lowercase": ["error", { "ignore": ["API", "GraphQL"] }],
@@ -721,7 +749,7 @@ the ESLint adapter uses `@oxlint/plugins` at runtime and exposes types from its
 optional ESLint peer. Oxlint types also reference `@oxlint/plugins`.
 
 Formatting uses Bun with `bunfig.toml` (no semicolons, 100-column width).
-Repo lint loads `src/oxlint.ts` directly and enables all four rules, with `API`
+Repo lint loads `src/oxlint.ts` directly and enables the four original rules, with `API`
 and `GraphQL` allowed as opening words in step names. No build is needed before
 linting. Use block-bodied step callbacks so Bun preserves
 their multiline layout. The repo disables `static-action-declaration` for

@@ -1,5 +1,6 @@
 import { multilineSchema } from "./oxlint/multiline-schema.ts"
 import { multilineSteps } from "./oxlint/multiline-steps.ts"
+import { newlinePerChainedCall } from "./oxlint/newline-per-chained-call.ts"
 import { recommendedRules } from "./oxlint/recommended.ts"
 import { staticActionDeclaration } from "./oxlint/static-action-declaration.ts"
 import { stepNameStartsWithLowercase } from "./oxlint/step-name-starts-with-lowercase.ts"
@@ -14,6 +15,7 @@ const plugin: Plugin & { configs: { recommended: typeof recommended } } = {
   meta: { name: "operandi" },
   rules: {
     "multiline-steps": multilineSteps,
+    "newline-per-chained-call": newlinePerChainedCall,
     "multiline-schema": multilineSchema,
     "step-name-starts-with-lowercase": stepNameStartsWithLowercase,
     "static-action-declaration": staticActionDeclaration,

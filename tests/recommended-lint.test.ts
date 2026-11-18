@@ -15,18 +15,22 @@ function build() {
 
 const valid = `import { createAction } from "operandi";
 import { z } from "zod";
-const action = createAction().input(
+const action = createAction()
+.input(
   z.object({
     id: z.string(),
     name: z.string(),
   }),
-).step("save", () => {
+)
+.step("save", () => {
   work();
 });`
 
 const ruleIds = [
   "operandi/multiline-schema",
   "operandi/multiline-steps",
+  "operandi/newline-per-chained-call",
+  "operandi/newline-per-chained-call",
   "operandi/static-action-declaration",
   "operandi/step-name-starts-with-lowercase",
 ]
@@ -46,7 +50,7 @@ test("recommended ESLint config registers the plugin and enables all rules", () 
 
 test("recommended settings can be overridden without changing the preset", () => {
   const code =
-    'import { createAction } from "operandi"; const action = createAction().step("API request", () => {\n work();\n});'
+    'import { createAction } from "operandi"; const action = createAction()\n.step("API request", () => {\n work();\n});'
 
   const linter = new Linter()
 
@@ -114,7 +118,7 @@ test("recommended Oxlint config resolves the package and enables all rules", asy
 
     for (const [source, expectedCount] of [
       [valid, 0],
-      [invalid, 4],
+      [invalid, 6],
     ] as const) {
       await writeFile(filename, source)
 
