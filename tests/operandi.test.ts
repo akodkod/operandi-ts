@@ -17,8 +17,17 @@ describe("createAction", () => {
       },
     }
     const operation = createAction()
-      .input(z.object({ userId: z.int(), workspaceId: z.int() }))
-      .output(z.object({ success: z.boolean() }))
+      .input(
+        z.object({
+          userId: z.int(),
+          workspaceId: z.int(),
+        }),
+      )
+      .output(
+        z.object({
+          success: z.boolean(),
+        }),
+      )
       .step("validate workspace", ({ input }) => {
         events.push(`validate ${input.workspaceId}`)
       })
@@ -102,7 +111,11 @@ describe("createAction", () => {
     expect(called).toBe(false)
     await expect(
       createAction()
-        .output(z.object({ ok: z.boolean() }))
+        .output(
+          z.object({
+            ok: z.boolean(),
+          }),
+        )
         .run(),
     ).rejects.toMatchObject({
       phase: "output",
@@ -168,6 +181,7 @@ describe("createAction", () => {
 
   test("rejects invalid runtime returns and blank names", async () => {
     expect(() =>
+      // eslint-disable-next-line operandi/step-name-starts-with-lowercase -- Exercise runtime rejection of a blank name
       createAction().step(" ", () => {
         return undefined
       }),
@@ -206,7 +220,11 @@ describe("createAction", () => {
 
 test("returns parsed defaults and stripped input with asynchronously transformed output", async () => {
   const action = createAction()
-    .input(z.object({ name: z.string().default("Ada") }))
+    .input(
+      z.object({
+        name: z.string().default("Ada"),
+      }),
+    )
     .output(
       z.number().transform(async (value) => {
         await Promise.resolve()

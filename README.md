@@ -10,7 +10,11 @@ ArkType, and other Standard Schema v1 validators, including async validation.
 - [Typed errors and safe execution](#typed-errors-and-safe-execution)
 - [Automatic names with Vite](#automatic-names-with-vite)
 - [Lint rules](#lint-rules)
+  - [Recommended configuration](#recommended-configuration)
   - [`operandi/multiline-steps`](#operandimultiline-steps)
+  - [`operandi/multiline-schema`](#operandimultiline-schema)
+  - [`operandi/step-name-starts-with-lowercase`](#operandistep-name-starts-with-lowercase)
+  - [`operandi/static-action-declaration`](#operandistatic-action-declaration)
 - [Development](#development)
   - [Source architecture](#source-architecture)
 
@@ -28,13 +32,13 @@ const completeGitHubAuthentication = createAction()
   .input(
     z.object({
       userId: z.int(),
-      workspaceId: z.int()
-    })
+      workspaceId: z.int(),
+    }),
   )
   .output(
-    z.object({ 
-      success: z.boolean()
-    })
+    z.object({
+      success: z.boolean(),
+    }),
   )
   .step("validate workspace", async ({ input }) => {
     await requireWorkspace(input.userId, input.workspaceId)
@@ -229,8 +233,16 @@ become part of the consuming action:
 
 ```typescript
 const withUser = createActionMiddleware("Require user")
-  .input(z.object({ userId: z.number() }))
-  .output(z.object({ authenticated: z.boolean() }))
+  .input(
+    z.object({
+      userId: z.number(),
+    }),
+  )
+  .output(
+    z.object({
+      authenticated: z.boolean(),
+    }),
+  )
   .step("require user", async ({ input, setOutput }) => {
     const user = await requireUser(input.userId) // Your application's lookup.
     setOutput({ authenticated: true })
@@ -239,8 +251,16 @@ const withUser = createActionMiddleware("Require user")
 
 const action = createAction()
   .use(withUser)
-  .input(z.object({ message: z.string() }))
-  .output(z.object({ success: z.boolean() }))
+  .input(
+    z.object({
+      message: z.string(),
+    }),
+  )
+  .output(
+    z.object({
+      success: z.boolean(),
+    }),
+  )
   .step("my step", ({ input, data, setOutput }) => {
     console.log(`${input.userId}: ${input.message}`, data.user)
     setOutput({ success: true })
@@ -257,10 +277,18 @@ operation.output // { authenticated: true, success: true }
 A middleware can also contain only an input schema:
 
 ```typescript
-const withUserId = createActionMiddleware("Require user ID").input(z.object({ userId: z.number() }))
+const withUserId = createActionMiddleware("Require user ID").input(
+  z.object({
+    userId: z.number(),
+  }),
+)
 const action = createAction()
   .use(withUserId)
-  .input(z.object({ message: z.string() }))
+  .input(
+    z.object({
+      message: z.string(),
+    }),
+  )
 await action.run({ userId: 1, message: "Hello" })
 ```
 
@@ -307,8 +335,16 @@ const action = createAction()
     },
     Forbidden: { message: "Access denied" },
   })
-  .input(z.object({ userId: z.number() }))
-  .output(z.object({ name: z.string() }))
+  .input(
+    z.object({
+      userId: z.number(),
+    }),
+  )
+  .output(
+    z.object({
+      name: z.string(),
+    }),
+  )
   .step("find user", async ({ input, errors, setOutput }) => {
     const user = await findUser(input.userId) // Your application's lookup.
     if (!user) {
@@ -428,6 +464,51 @@ plugin API. `operandi/eslint` adapts the same rules for ESLint 9+. Neither
 entry point enables rules automatically. The Oxlint entry point requires no
 ESLint installation; it is a JavaScript plugin, not a compiled Rust rule.
 
+### Recommended configuration
+
+Both entry points export `recommended`, also available as
+`operandi.configs.recommended` on their default plugin export. Each preset enables
+all four rules at error severity with their default options. The recommended
+step-name ignore list is empty; add your own exceptions when needed.
+
+For ESLint flat config:
+
+```javascript
+import { recommended } from "operandi/eslint"
+
+export default [recommended]
+```
+
+The preset registers the plugin. Keep your existing TypeScript parser and file
+matching configuration for TypeScript projects. To override a rule, place a
+configuration after the preset:
+
+```javascript
+import { recommended } from "operandi/eslint"
+
+export default [
+  recommended,
+  {
+    rules: {
+      "operandi/step-name-starts-with-lowercase": ["error", { ignore: ["API", "GraphQL"] }],
+    },
+  },
+]
+```
+
+For an Oxlint JavaScript or TypeScript config:
+
+```typescript
+import { recommended } from "operandi/oxlint"
+
+export default recommended
+```
+
+For Vite+, use `defineConfig({ lint: recommended })`. The Oxlint preset includes
+`jsPlugins` and `rules`; spread it into an existing config and merge any existing
+plugin registrations and rule overrides. JSON-only configurations can use the
+explicit rule settings shown below.
+
 ### `operandi/multiline-steps`
 
 Requires Operandi `.step(...)`, `.beforeRun(...)`, `.afterRun(...)`,
@@ -460,6 +541,85 @@ when factories are imported through another entry point. This repo uses
 The rule reports violations without autofixing.
 Schema and composition calls (`input`, `output`, `errors`, and `use`) are unaffected.
 
+### `operandi/multiline-schema`
+
+When an inline Zod object schema passed to Operandi `.input()` or `.output()` has
+more than one property, `z.object` must start on a new line, with each property
+and the closing braces on separate lines. The outer call's closing parenthesis
+also goes on its own line. Empty and single-property schemas may stay inline:
+
+```typescript
+createAction()
+  .input(
+    z.object({
+      userId: z.string(),
+      workspaceId: z.string(),
+    }),
+  )
+  .output(z.object({ success: z.boolean() }))
+```
+
+The rule recognizes Zod named, renamed, default, and namespace imports from
+`zod`, `zod/v4`, `zod/mini`, and `zod/v4/mini`. It also checks chained schemas such
+as `z.object({ ... }).strict()`. Other validators, unrelated `.input()`/`.output()`
+methods, shadowed imports, and schemas passed by variable are unaffected.
+Only entries in the immediate object literal are counted; each spread counts as
+one entry. Nested properties and shapes passed by variable are not expanded.
+It supports the same `importSources` option as `multiline-steps` and reports
+violations without autofixing.
+
+### `operandi/step-name-starts-with-lowercase`
+
+Requires `.step()` names to begin with a lowercase letter, including Unicode
+lowercase letters. The optional `ignore` list permits specific opening words:
+
+```json
+"operandi/step-name-starts-with-lowercase": ["error", {
+  "ignore": ["API", "GraphQL"]
+}]
+```
+
+With that configuration, `"fetch user"`, `"API request"`, and `"GraphQL query"`
+are allowed; `"Fetch user"` and `"APIClient request"` are reported. Matching is
+case-sensitive and uses the entire opening word (letters, combining marks,
+digits, and underscores). Punctuation can follow an ignored word, so
+`"API: request"` and `"API-request"` are allowed. The default ignore list is empty.
+
+The rule checks string literals and template literals without interpolations.
+Dynamic names, including variables and interpolated templates, are not evaluated.
+It checks actions and middleware, supports the same `importSources` option as the
+other rules, and ignores unrelated or shadowed builders. Lifecycle hook names are
+unaffected. It reports violations without automatically changing names.
+
+### `operandi/static-action-declaration`
+
+Requires `createAction()` and its fluent builder chain to directly initialize a
+named, module-level `const`. Define the action once, then call `.run()` or
+`.runSafe()` wherever needed:
+
+```typescript
+export const saveUser = createAction().step("save user", async () => {
+  await save()
+})
+
+async function handleRequest() {
+  return saveUser.run()
+}
+```
+
+Calls inside functions, callbacks, loops, conditional blocks, and class bodies
+are reported, even when assigned to a local `const`. The rule also rejects
+`let`/`var`, unassigned calls, destructuring, inline execution such as
+`const result = createAction().run()`, and actions nested inside object literals,
+arrays, conditionals, or other calls. Export a named constant instead of writing
+`export default createAction()`.
+
+It recognizes renamed and namespace imports, local `const` factory aliases, and
+TypeScript wrappers. It supports the same `importSources` option as the other
+rules and ignores unrelated or shadowed factories. `createActionMiddleware()`
+is unaffected. There is no automatic fix because moving a declaration can change
+its scope and captured values.
+
 For ESLint flat config, add the plugin to your existing configuration (and keep
 your TypeScript parser configuration when linting TypeScript):
 
@@ -469,7 +629,12 @@ import operandi from "operandi/eslint"
 export default [
   {
     plugins: { operandi },
-    rules: { "operandi/multiline-steps": "error" },
+    rules: {
+      "operandi/multiline-steps": "error",
+      "operandi/multiline-schema": "error",
+      "operandi/step-name-starts-with-lowercase": ["error", { ignore: ["API", "GraphQL"] }],
+      "operandi/static-action-declaration": "error",
+    },
   },
 ]
 ```
@@ -479,7 +644,12 @@ For Oxlint, add this to `.oxlintrc.json`:
 ```json
 {
   "jsPlugins": [{ "name": "operandi", "specifier": "operandi/oxlint" }],
-  "rules": { "operandi/multiline-steps": "error" }
+  "rules": {
+    "operandi/multiline-steps": "error",
+    "operandi/multiline-schema": "error",
+    "operandi/step-name-starts-with-lowercase": ["error", { "ignore": ["API", "GraphQL"] }],
+    "operandi/static-action-declaration": "error"
+  }
 }
 ```
 
@@ -523,9 +693,13 @@ the ESLint adapter uses `@oxlint/plugins` at runtime and exposes types from its
 optional ESLint peer. Oxlint types also reference `@oxlint/plugins`.
 
 Formatting uses Bun with `bunfig.toml` (no semicolons, 100-column width).
-Repo lint loads `src/oxlint.ts` directly and enables `operandi/multiline-steps`;
-no build is needed before linting. Use block-bodied step callbacks so Bun preserves
-their multiline layout.
+Repo lint loads `src/oxlint.ts` directly and enables all four rules, with `API`
+and `GraphQL` allowed as opening words in step names. No build is needed before
+linting. Use block-bodied step callbacks so Bun preserves
+their multiline layout. The repo disables `static-action-declaration` for
+`tests/**/*.ts`: runtime tests construct isolated actions inside test callbacks,
+and type tests deliberately exercise invalid expressions. Dedicated lint tests
+check the rule with both ESLint and Oxlint.
 Bun owns indentation, member delimiters, wrapping, and vertical spacing; conflicting
 lint presentation rules are disabled. Native TypeScript-aware unused-variable
 checks replace the JavaScript plugin check on type signatures. Test-only async
@@ -543,6 +717,11 @@ The runtime modules separate input preparation and validation, record merging,
 error factories, lifecycle orchestration (`execute.ts`), and callback/continuation
 execution (`invoke.ts`). Runtime modules do not import the public entry point.
 Vite, ESLint, and Oxlint integrations retain independent entry points.
+
+Each lint rule lives in its own file under `src/oxlint/`. `shared.ts` owns AST and
+import-binding helpers, and `recommended.ts` defines the shared recommended rule
+settings. `src/oxlint.ts` registers the native rules and Oxlint preset;
+`src/eslint.ts` adapts copies of those rules and registers the ESLint flat preset.
 
 After building and packing, run `bun run check:package` to install the tarball in
 isolated temporary consumers and verify Node imports and strict NodeNext types.

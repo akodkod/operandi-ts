@@ -56,8 +56,16 @@ test("rejects non-object output merges", async () => {
 test("middleware merges user input, output, and data with an action", async () => {
   const events: string[] = []
   const withUser = createActionMiddleware()
-    .input(z.object({ userId: z.number() }))
-    .output(z.object({ authenticated: z.boolean() }))
+    .input(
+      z.object({
+        userId: z.number(),
+      }),
+    )
+    .output(
+      z.object({
+        authenticated: z.boolean(),
+      }),
+    )
     .step("authenticate", ({ input, setOutput }) => {
       events.push(`user ${input.userId}`)
       setOutput({ authenticated: true })
@@ -65,8 +73,16 @@ test("middleware merges user input, output, and data with an action", async () =
     })
   const action = createAction()
     .use(withUser)
-    .input(z.object({ message: z.string() }))
-    .output(z.object({ length: z.number() }))
+    .input(
+      z.object({
+        message: z.string(),
+      }),
+    )
+    .output(
+      z.object({
+        length: z.number(),
+      }),
+    )
     .step("my step", ({ input, data, setOutput }) => {
       events.push(`${input.userId}: ${input.message}`)
       expect(data.user.id).toBe(input.userId)
@@ -86,13 +102,21 @@ test("middleware merges user input, output, and data with an action", async () =
 test("validates every input before any middleware side effects", async () => {
   let calls = 0
   const middleware = createActionMiddleware()
-    .input(z.object({ userId: z.number() }))
+    .input(
+      z.object({
+        userId: z.number(),
+      }),
+    )
     .step("effect", () => {
       calls++
     })
   const action = createAction()
     .use(middleware)
-    .input(z.object({ message: z.string() }))
+    .input(
+      z.object({
+        message: z.string(),
+      }),
+    )
   await expect(action.run({ message: "hi" } as never)).rejects.toMatchObject({ phase: "input" })
   await expect(action.run({ userId: 1 } as never)).rejects.toMatchObject({ phase: "input" })
   expect(calls).toBe(0)
@@ -116,7 +140,11 @@ test("composes nested and multiple middleware across schema libraries", async ()
       return { b: 2 }
     })
   const audit = createActionMiddleware()
-    .output(z.object({ audited: z.boolean() }))
+    .output(
+      z.object({
+        audited: z.boolean(),
+      }),
+    )
     .step("audit", ({ setOutput }) => {
       order.push("audit")
       setOutput({ audited: true })
@@ -124,7 +152,11 @@ test("composes nested and multiple middleware across schema libraries", async ()
   const action = createAction()
     .use(workspace)
     .use(audit)
-    .input(z.object({ message: z.string() }))
+    .input(
+      z.object({
+        message: z.string(),
+      }),
+    )
     .step("action", ({ input, data }) => {
       expect(input).toEqual({ userId: 1, workspaceId: 2, message: "hi" })
       expect(data).toEqual({ a: 1, b: 2 })
@@ -139,16 +171,32 @@ test("composes nested and multiple middleware across schema libraries", async ()
 
 test("isolates transformed inputs and outputs; later fields win in the action", async () => {
   const middleware = createActionMiddleware()
-    .input(z.object({ value: z.string().transform(Number) }))
-    .output(z.object({ value: z.number().transform(String) }))
+    .input(
+      z.object({
+        value: z.string().transform(Number),
+      }),
+    )
+    .output(
+      z.object({
+        value: z.number().transform(String),
+      }),
+    )
     .step("middleware", ({ input, setOutput }) => {
       expect(input.value).toBe(42)
       setOutput({ value: input.value })
     })
   const action = createAction()
     .use(middleware)
-    .input(z.object({ value: z.string().transform((s) => s.length) }))
-    .output(z.object({ value: z.boolean() }))
+    .input(
+      z.object({
+        value: z.string().transform((s) => s.length),
+      }),
+    )
+    .output(
+      z.object({
+        value: z.boolean(),
+      }),
+    )
     .step("action", ({ input, setOutput }) => {
       expect(input.value).toBe(2)
       setOutput({ value: true })
@@ -161,7 +209,11 @@ test("isolates transformed inputs and outputs; later fields win in the action", 
 
 test("middleware failures stop the action, including invalid output", async () => {
   let called = false
-  const missingOutput = createActionMiddleware().output(z.object({ required: z.string() }))
+  const missingOutput = createActionMiddleware().output(
+    z.object({
+      required: z.string(),
+    }),
+  )
   await expect(
     createAction()
       .use(missingOutput)
@@ -187,19 +239,39 @@ test("middleware failures stop the action, including invalid output", async () =
 
 test("middleware can be reused, branched, and executed concurrently", async () => {
   const middleware = createActionMiddleware()
-    .input(z.object({ userId: z.number() }))
-    .output(z.object({ userId: z.number() }))
+    .input(
+      z.object({
+        userId: z.number(),
+      }),
+    )
+    .output(
+      z.object({
+        userId: z.number(),
+      }),
+    )
     .step("user", async ({ input, setOutput }) => {
       await Promise.resolve()
       setOutput(input)
     })
   const base = createAction().use(middleware)
-  const first = base.output(z.object({ tag: z.string() })).step("first", ({ setOutput }) => {
-    return setOutput({ tag: "first" })
-  })
-  const second = base.output(z.object({ tag: z.string() })).step("second", ({ setOutput }) => {
-    return setOutput({ tag: "second" })
-  })
+  const first = base
+    .output(
+      z.object({
+        tag: z.string(),
+      }),
+    )
+    .step("first", ({ setOutput }) => {
+      return setOutput({ tag: "first" })
+    })
+  const second = base
+    .output(
+      z.object({
+        tag: z.string(),
+      }),
+    )
+    .step("second", ({ setOutput }) => {
+      return setOutput({ tag: "second" })
+    })
   expect(
     await Promise.all([
       first.run({ userId: 1 }),
@@ -225,7 +297,13 @@ test("schema-less middleware and middleware-only actions work", async () => {
     .run()
   expect(
     await createAction()
-      .use(createActionMiddleware().input(z.object({ userId: z.number() })))
+      .use(
+        createActionMiddleware().input(
+          z.object({
+            userId: z.number(),
+          }),
+        ),
+      )
       .run({ userId: 1 }),
   ).toEqual({ input: { userId: 1 }, output: undefined })
 })

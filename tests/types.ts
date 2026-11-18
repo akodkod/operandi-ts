@@ -68,16 +68,32 @@ createAction()
 createAction().input(z.string().optional()).run()
 
 const withUser = createActionMiddleware()
-  .input(z.object({ userId: z.number() }))
-  .output(z.object({ authenticated: z.boolean() }))
+  .input(
+    z.object({
+      userId: z.number(),
+    }),
+  )
+  .output(
+    z.object({
+      authenticated: z.boolean(),
+    }),
+  )
   .step("authenticate", ({ input, setOutput }) => {
     setOutput({ authenticated: true })
     return { user: { id: input.userId } }
   })
 const withMessage = createAction()
   .use(withUser)
-  .input(z.object({ message: z.string() }))
-  .output(z.object({ length: z.number() }))
+  .input(
+    z.object({
+      message: z.string(),
+    }),
+  )
+  .output(
+    z.object({
+      length: z.number(),
+    }),
+  )
   .step("message", ({ input, data, setOutput }) => {
     assertType<Equal<typeof input, { userId: number; message: string }>>()
     assertType<Equal<typeof data.user.id, number>>()
@@ -119,11 +135,17 @@ assertType<
   >
 >()
 const transformedMiddleware = createActionMiddleware().input(
-  z.object({ value: z.string().transform(Number) }),
+  z.object({
+    value: z.string().transform(Number),
+  }),
 )
 createAction()
   .use(transformedMiddleware)
-  .input(z.object({ value: z.string().transform((s) => s.length > 0) }))
+  .input(
+    z.object({
+      value: z.string().transform((s) => s.length > 0),
+    }),
+  )
   .step("override", ({ input }) => {
     assertType<Equal<typeof input.value, boolean>>()
   })
@@ -156,7 +178,11 @@ void checkOperationResult
 const authErrors = createActionMiddleware().errors({ UNAUTHORIZED: {} })
 const errorAction = createAction()
   .use(authErrors)
-  .input(z.object({ id: z.number() }))
+  .input(
+    z.object({
+      id: z.number(),
+    }),
+  )
   .output(z.string())
   .errors({
     MISSING: { data: z.object({ id: z.number() }) },
@@ -204,7 +230,9 @@ async function checkSafeErrors() {
 void checkSafeErrors
 
 const lifecycle = createAction("Named action")
-  .beforeRun("start", () => ({ startTime: 1 }))
+  .beforeRun("start", () => {
+    return { startTime: 1 }
+  })
   .afterRun("duration", ({ data }) => {
     assertType<Equal<typeof data.startTime, number>>()
   })
@@ -212,7 +240,11 @@ const lifecycle = createAction("Named action")
     assertType<Equal<typeof actionName, string | undefined>>()
     await run()
   })
-  .input(z.object({ message: z.string() }))
+  .input(
+    z.object({
+      message: z.string(),
+    }),
+  )
   .beforeStep("start step", ({ input, data }) => {
     assertType<Equal<typeof input.message, string>>()
     assertType<Equal<typeof data.startTime, number>>()
@@ -235,15 +267,25 @@ const lifecycle = createAction("Named action")
     assertType<Equal<typeof data.finished, boolean>>()
   })
 // @ts-expect-error afterRun does not produce data
-createAction().afterRun("bad", () => ({ unused: true }))
+createAction().afterRun("bad", () => {
+  return { unused: true }
+})
 // @ts-expect-error Async afterRun does not produce data either
-createAction().afterRun("bad", async () => ({ unused: true }))
+createAction().afterRun("bad", async () => {
+  return { unused: true }
+})
 // @ts-expect-error afterStep does not produce data
-createAction().afterStep("bad", () => ({ unused: true }))
+createAction().afterStep("bad", () => {
+  return { unused: true }
+})
 // @ts-expect-error Async afterStep does not produce data either
-createAction().afterStep("bad", async () => ({ unused: true }))
+createAction().afterStep("bad", async () => {
+  return { unused: true }
+})
 // @ts-expect-error Lifecycle setup hooks must precede steps
-lifecycle.beforeRun("late", () => {})
+lifecycle.beforeRun("late", () => {
+  return undefined
+})
 // @ts-expect-error Actions cannot be used as middleware
 createAction().use(createAction())
 createAction().beforeRun("data", ({ data }) => {
@@ -251,7 +293,9 @@ createAction().beforeRun("data", ({ data }) => {
   void data.finished
 })
 createAction()
-  .beforeStep("data", () => ({ stepStart: 1 }))
+  .beforeStep("data", () => {
+    return { stepStart: 1 }
+  })
   .afterRun("no steps", ({ data }) => {
     // @ts-expect-error With no steps, beforeStep has not run
     void data.stepStart

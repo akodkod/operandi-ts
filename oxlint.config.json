@@ -42,6 +42,15 @@
     {
       "files": ["**/*.ts"],
       "rules": {
+        "operandi/static-action-declaration": [
+          "error",
+          { "importSources": ["operandi", "../src/index"] }
+        ],
+        "operandi/step-name-starts-with-lowercase": [
+          "error",
+          { "importSources": ["operandi", "../src/index"], "ignore": ["API", "GraphQL"] }
+        ],
+        "operandi/multiline-schema": ["error", { "importSources": ["operandi", "../src/index"] }],
         "operandi/multiline-steps": [
           "error",
           {
@@ -383,6 +392,7 @@
     {
       "files": ["tests/**/*.ts"],
       "rules": {
+        "operandi/static-action-declaration": "off",
         "typescript/require-await": "off",
         "typescript/await-thenable": "off"
       }

@@ -16,7 +16,11 @@ test("run throws a declared error directly; runSafe stores it and preserves vali
   let later = false
   const action = createAction()
     .errors({ NOT_FOUND: { message: "Missing user", data: z.object({ userId: z.number() }) } })
-    .input(z.object({ userId: z.string().transform(Number) }))
+    .input(
+      z.object({
+        userId: z.string().transform(Number),
+      }),
+    )
     .step("lookup", ({ input, errors }) => {
       throw errors.NOT_FOUND({ data: input, cause })
     })
@@ -104,7 +108,11 @@ test("error data supports all three schema libraries and rejects invalid runtime
 test("nested middleware errors merge into the action and are available to its steps", async () => {
   const auth = createActionMiddleware()
     .errors({ UNAUTHORIZED: {} })
-    .input(z.object({ userId: z.number() }))
+    .input(
+      z.object({
+        userId: z.number(),
+      }),
+    )
     .step("auth", ({ input, errors }) => {
       if (input.userId === 0) throw errors.UNAUTHORIZED()
     })

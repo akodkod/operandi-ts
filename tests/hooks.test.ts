@@ -104,10 +104,18 @@ test("after hooks return nothing; runtime rejects values from untyped callbacks"
 
 test("before hooks chain their data and afterRun can observe completed step data", async () => {
   const action = createAction()
-    .beforeRun("first", () => ({ first: 1 }))
-    .beforeRun("second", ({ data }) => ({ second: data.first + 1 }))
-    .beforeStep("third", ({ data }) => ({ third: data.second + 1 }))
-    .beforeStep("fourth", ({ data }) => ({ fourth: data.third + 1 }))
+    .beforeRun("first", () => {
+      return { first: 1 }
+    })
+    .beforeRun("second", ({ data }) => {
+      return { second: data.first + 1 }
+    })
+    .beforeStep("third", ({ data }) => {
+      return { third: data.second + 1 }
+    })
+    .beforeStep("fourth", ({ data }) => {
+      return { fourth: data.third + 1 }
+    })
     .step("work", ({ data }) => {
       return { fifth: data.fourth + 1 }
     })
@@ -181,7 +189,9 @@ test("hook failures and declared errors retain their identity through wrappers",
 })
 
 test("continuations must run once and cannot hide inner failures", async () => {
-  const skipped = createAction().aroundRun("skip", () => {})
+  const skipped = createAction().aroundRun("skip", () => {
+    return undefined
+  })
   expect((await skipped.runSafe()).error).toMatchObject({
     phase: "aroundRun",
     cause: expect.any(TypeError),
@@ -229,7 +239,9 @@ test("runSafe runs the same hooks and concurrent runs own their data", async () 
   const seen: number[] = []
   const base = createAction()
     .input(z.number())
-    .beforeRun("start", ({ input }) => ({ requestId: input }))
+    .beforeRun("start", ({ input }) => {
+      return { requestId: input }
+    })
   const action = base
     .step("work", async ({ input, data }) => {
       await Promise.resolve()
@@ -245,7 +257,11 @@ test("runSafe runs the same hooks and concurrent runs own their data", async () 
 
 test("middleware hooks have their own name and data plus the consuming action name", async () => {
   const middleware = createActionMiddleware("Authentication")
-    .input(z.object({ userId: z.number() }))
+    .input(
+      z.object({
+        userId: z.number(),
+      }),
+    )
     .beforeRun("middleware start", ({ actionName, middlewareName }) => {
       expect(actionName).toBe("Send message")
       expect(middlewareName).toBe("Authentication")
@@ -279,12 +295,18 @@ test("empty and invalid runs have consistent lifecycle behavior", async () => {
   expect(events).toEqual(["before", "after"])
   await action.runSafe("invalid" as never)
   expect(events).toEqual(["before", "after"])
-  expect(() => createAction().beforeRun(" ", () => {})).toThrow(TypeError)
+  expect(() =>
+    createAction().beforeRun(" ", () => {
+      return undefined
+    }),
+  ).toThrow(TypeError)
 })
 
 test("hooked runs reject data collisions instead of violating captured hook types", async () => {
   const action = createAction()
-    .beforeRun("start", () => ({ startTime: 1 }))
+    .beforeRun("start", () => {
+      return { startTime: 1 }
+    })
     .afterRun("read", ({ data }) => {
       data.startTime.toFixed()
     })

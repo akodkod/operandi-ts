@@ -51,14 +51,28 @@ for (const method of hooks) {
     { code: prelude + `createActionMiddleware().${method}("hook", handler);`, count: 1 },
     { code: prelude + `createAction().${method}("hook", () => {\n  work();\n});`, count: 0 },
     { code: prelude + `createAction().${method}(\n"hook", handler\n);`, count: 0 },
-    { code: prelude + `const action = createAction(); action["${method}"]("hook", handler);`, count: 1 },
+    {
+      code: prelude + `const action = createAction(); action["${method}"]("hook", handler);`,
+      count: 1,
+    },
     { code: prelude + `other.${method}("hook", handler);`, count: 0 },
-    { code: prelude + `function local(createAction) { createAction().${method}("hook", handler); }`, count: 0 },
+    {
+      code: prelude + `function local(createAction) { createAction().${method}("hook", handler); }`,
+      count: 0,
+    },
   )
 }
 cases.push(
-  { code: prelude + 'createAction().beforeRun("start", handler).step("save", handler).afterRun("end", handler);', count: 3 },
-  { code: prelude + 'createAction().input(schema).output(schema).errors({}).use(middleware);', count: 0 },
+  {
+    code:
+      prelude +
+      'createAction().beforeRun("start", handler).step("save", handler).afterRun("end", handler);',
+    count: 3,
+  },
+  {
+    code: prelude + "createAction().input(schema).output(schema).errors({}).use(middleware);",
+    count: 0,
+  },
 )
 
 for (const [index, fixture] of cases.entries()) {
@@ -182,13 +196,14 @@ test("Oxlint entry point uses createOnce without an ESLint adapter", () => {
   expect(rule).not.toHaveProperty("create")
 })
 
-
 test("multiline hook diagnostics name the offending method", () => {
   for (const method of hooks) {
     const messages = new Linter().verify(prelude + `createAction().${method}("hook", handler);`, {
       plugins: { operandi: plugin },
       rules: { "operandi/multiline-steps": "error" },
     })
-    expect(messages[0]?.message).toBe(`Write this Operandi .${method}() call across multiple lines.`)
+    expect(messages[0]?.message).toBe(
+      `Write this Operandi .${method}() call across multiple lines.`,
+    )
   }
 })
