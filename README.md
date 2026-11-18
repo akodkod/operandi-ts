@@ -190,12 +190,15 @@ a runtime error. Hooks do not change the `{ input, output }` result shape.
 
 Input validation happens first. Then execution proceeds as follows:
 
-1. Enter `aroundRun` wrappers (first registered is outermost).
+1. Enter middleware `aroundRun` wrappers in `.use()` order, recursively entering
+   nested middleware before its parent. Then enter the action's `aroundRun` wrappers.
+   Within each builder, the first registered wrapper is outermost.
 2. Run `beforeRun` hooks in registration order.
 3. Execute middleware with its own hooks and steps.
 4. For each local step: enter `aroundStep`, run `beforeStep`, execute the step,
    run `afterStep`, and exit `aroundStep`.
-5. Run `afterRun` hooks, validate output, and exit `aroundRun` wrappers.
+5. Run `afterRun` hooks, validate output, and exit all `aroundRun` wrappers in
+   reverse order.
 
 The same lifecycle applies to `.run()` and `.runSafe()`. After hooks only run on
 success. Use `try/finally` in an around hook for cleanup on failure. Continuations
@@ -208,7 +211,32 @@ and typed `errors`. Before/after hooks also receive `setOutput` when an output
 schema has been configured. Step hooks additionally receive `stepName` and
 zero-based `stepIndex`. An unnamed action has `actionName: undefined`.
 Middleware hooks receive the consuming action's name and their own middleware
-name; they wrap that middleware's execution, not the consuming action's steps.
+name. Middleware `aroundRun` hooks wrap the entire consuming action, including
+its hooks, sibling middleware, and output validation. This lets transaction and
+request-context middleware stay active until the action finishes. Other middleware
+hooks remain local to that middleware. All hook contexts retain their own builder's
+input and data; middleware wrappers do not receive the consuming action's data.
+
+For example, a transaction wrapper can be a reusable middleware constant:
+
+```typescript
+const WithTransaction = createActionMiddleware("With Transaction")
+  .aroundRun("run in transaction", async ({ run }) => {
+    await db.transaction((tx) => transactionContext.run(tx, run))
+  })
+  .beforeRun("use transaction", () => ({ tx: transactionContext.getStore()! }))
+
+const SaveRecord = createAction("Save Record")
+  .use(WithTransaction)
+  .step("save record", async ({ data }) => {
+    await saveRecord(data.tx)
+  })
+```
+
+`db`, `transactionContext`, and `saveRecord` above are application-provided. A
+transaction callback must await `run()` and let failures propagate to roll back.
+This changes the earlier middleware-local scope of `aroundRun`: cleanup and commit
+code after `await run()` now runs after the consuming action finishes.
 
 Register `beforeRun`, `beforeStep`, `afterStep`, and `aroundStep` before the first
 step. `afterRun` and `aroundRun` can also be registered after steps. A hook's

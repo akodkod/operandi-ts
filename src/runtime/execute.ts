@@ -10,7 +10,26 @@ export async function execute(
   declaredErrors: Set<OperandiError>,
   actionName: string | undefined = prepared.definition.name,
 ): Promise<{ data: Record<string, unknown>; output: unknown }> {
+  const execution = createExecution(prepared, declaredErrors, actionName)
+  await execution.wrap(execution.run)
+  return execution.result()
+}
+
+type Execution = {
+  run: () => Promise<void>
+  wrap: (body: () => Promise<void>) => Promise<void>
+  result: () => { data: Record<string, unknown>; output: unknown }
+}
+
+function createExecution(
+  prepared: Prepared,
+  declaredErrors: Set<OperandiError>,
+  actionName: string | undefined,
+): Execution {
   const { definition, input } = prepared
+  const middleware = prepared.middleware.map((child) =>
+    createExecution(child, declaredErrors, actionName),
+  )
   let data: Record<string, unknown> = {}
   let inheritedOutput: unknown
   let output: unknown
@@ -98,10 +117,11 @@ export async function execute(
     await next(0)
   }
 
-  await around("aroundRun", async () => {
+  async function run() {
     await hooks("beforeRun")
-    for (const child of prepared.middleware) {
-      const result = await execute(child, declaredErrors, actionName)
+    for (const child of middleware) {
+      await child.run()
+      const result = child.result()
       mergeData(result.data, child)
       inheritedOutput = combine(inheritedOutput, result.output)
     }
@@ -127,6 +147,16 @@ export async function execute(
       ? await validate(definition.outputSchema, output, "output")
       : undefined
     finalOutput = combine(inheritedOutput, ownOutput)
-  })
-  return { data, output: finalOutput }
+  }
+
+  async function wrap(body: () => Promise<void>) {
+    async function next(index: number): Promise<void> {
+      const child = middleware[index]
+      if (!child) return around("aroundRun", body)
+      await child.wrap(() => next(index + 1))
+    }
+    await next(0)
+  }
+
+  return { run, wrap, result: () => ({ data, output: finalOutput }) }
 }
