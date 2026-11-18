@@ -1,11 +1,5 @@
-import {
-  type ErrorMap,
-  HookError,
-  OperandiError,
-  StepError,
-  UnexpectedError,
-  ValidationError,
-} from "./errors"
+// prettier-ignore
+import { type ErrorMap, HookError, OperandiError, StepError, UnexpectedError, ValidationError } from "./errors"
 import type { Definition, Prepared, Schema, Step } from "./runtime/definition"
 import { mergeErrors } from "./runtime/error-factories"
 import { execute } from "./runtime/execute"
@@ -18,17 +12,20 @@ function create(definition: Definition): Action {
   // The public builder tracks accumulated types, runtime storage erases them
   const addHook = (phase: HookPhase, name: string, handler: Step["handler"]) => {
     if (!name.trim()) throw new TypeError("A hook needs a non-empty name")
+
     if (
       definition.steps.length > 0 &&
       ["beforeRun", "beforeStep", "afterStep", "aroundStep"].includes(phase)
     ) {
       throw new TypeError(`${phase} must be registered before steps`)
     }
+
     return create({
       ...definition,
       hooks: [...definition.hooks, { phase, name, handler, errors: definition.errors }],
     })
   }
+
   const operation = {
     beforeRun: (name: string, handler: Step["handler"]) => addHook("beforeRun", name, handler),
     afterRun: (name: string, handler: Step["handler"]) => addHook("afterRun", name, handler),
@@ -41,8 +38,10 @@ function create(definition: Definition): Action {
     },
     use(middleware: object) {
       const child = definitions.get(middleware)
+
       if (child?.kind !== "middleware")
         throw new TypeError("Middleware must be created with createActionMiddleware")
+
       return create({
         ...definition,
         middleware: [...definition.middleware, child],
@@ -53,6 +52,7 @@ function create(definition: Definition): Action {
     output: (schema: Schema) => create({ ...definition, outputSchema: schema }),
     step(name: string, handler: Step["handler"]) {
       if (!name.trim()) throw new TypeError("A step needs a non-empty name")
+
       return create({
         ...definition,
         steps: [...definition.steps, { name, handler, errors: definition.errors }],
@@ -66,6 +66,7 @@ function create(definition: Definition): Action {
     async runSafe(rawInput: unknown) {
       let prepared: Prepared | undefined
       const declaredErrors = new Set<OperandiError>()
+
       try {
         prepared = await prepare(definition, rawInput)
         const { output } = await execute(prepared, declaredErrors)
@@ -78,10 +79,12 @@ function create(definition: Definition): Action {
           (cause instanceof OperandiError && declaredErrors.has(cause))
             ? cause
             : new UnexpectedError(cause)
+
         return { input: prepared?.input, output: undefined, error }
       }
     },
   }
+
   definitions.set(operation, definition)
   return operation as unknown as Action
 }

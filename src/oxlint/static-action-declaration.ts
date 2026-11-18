@@ -1,11 +1,5 @@
-import {
-  builderMethods,
-  createBindings,
-  importSourcesSchema,
-  memberName,
-  type Node,
-  unwrap,
-} from "./shared.ts"
+// prettier-ignore
+import { builderMethods, createBindings, importSourcesSchema, memberName, type Node, unwrap } from "./shared.ts"
 import type { CreateOnceRule } from "@oxlint/plugins"
 
 export const staticActionDeclaration: CreateOnceRule = {
@@ -25,12 +19,15 @@ export const staticActionDeclaration: CreateOnceRule = {
 
     function isStaticDeclaration(node: Node): boolean {
       let expression = node
+
       while (expression.parent) {
         const parent = expression.parent
+
         if (unwrap(parent) === unwrap(expression)) {
           expression = parent
           continue
         }
+
         if (
           parent.type === "MemberExpression" &&
           parent.object === expression &&
@@ -41,6 +38,7 @@ export const staticActionDeclaration: CreateOnceRule = {
           expression = parent.parent
           continue
         }
+
         if (
           parent.type !== "VariableDeclarator" ||
           parent.init !== expression ||
@@ -49,12 +47,15 @@ export const staticActionDeclaration: CreateOnceRule = {
           parent.parent.kind !== "const"
         )
           return false
+
         const container = parent.parent.parent
+
         return (
           container.type === "Program" ||
           (container.type === "ExportNamedDeclaration" && container.parent.type === "Program")
         )
       }
+
       return false
     }
 

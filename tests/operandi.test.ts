@@ -8,6 +8,7 @@ import { z } from "zod"
 describe("createAction", () => {
   test("runs the transaction flow in order with inferred data and output", async () => {
     const events: string[] = []
+
     const tx = {
       update: async () => {
         events.push("update")
@@ -16,6 +17,7 @@ describe("createAction", () => {
         events.push("commit")
       },
     }
+
     const operation = createAction()
       .input(
         z.object({
@@ -41,10 +43,12 @@ describe("createAction", () => {
         await data.tx.commit()
         setOutput({ success: true })
       })
+
     expect(await operation.run({ userId: 1, workspaceId: 2 })).toEqual({
       input: { userId: 1, workspaceId: 2 },
       output: { success: true },
     })
+
     expect(events).toEqual(["validate 2", "update", "commit"])
   })
 
@@ -60,10 +64,12 @@ describe("createAction", () => {
         .step("echo", ({ input, setOutput }) => {
           return setOutput(input)
         })
+
       expect(await op.run({ name: "Ada" })).toEqual({
         input: { name: "Ada" },
         output: { name: "Ada" },
       })
+
       await expect(op.run({ name: 123 } as never)).rejects.toBeInstanceOf(ValidationError)
     }
   })
@@ -75,6 +81,7 @@ describe("createAction", () => {
       .step("double", ({ input, setOutput }) => {
         return setOutput(input * 2)
       })
+
     expect(await op.run("21")).toEqual({ input: 21, output: "42" })
   })
 
@@ -89,6 +96,7 @@ describe("createAction", () => {
             : { issues: [{ message: "Expected string" }] },
       },
     }
+
     expect(
       await createAction()
         .input(schema)
@@ -102,13 +110,16 @@ describe("createAction", () => {
 
   test("fails before steps on invalid input and validates missing output", async () => {
     let called = false
+
     const op = createAction()
       .input(z.number())
       .step("work", () => {
         called = true
       })
+
     await expect(op.run("bad" as never)).rejects.toMatchObject({ phase: "input" })
     expect(called).toBe(false)
+
     await expect(
       createAction()
         .output(
@@ -120,6 +131,7 @@ describe("createAction", () => {
     ).rejects.toMatchObject({
       phase: "output",
     })
+
     expect(await createAction().output(z.string().default("default")).run()).toEqual({
       input: undefined,
       output: "default",
@@ -129,6 +141,7 @@ describe("createAction", () => {
   test("wraps failed steps with name, index, and original cause; stops execution", async () => {
     const cause = new Error("database unavailable")
     let called = false
+
     const op = createAction()
       .step("fail", () => {
         throw cause
@@ -136,6 +149,7 @@ describe("createAction", () => {
       .step("later", () => {
         called = true
       })
+
     await expect(op.run()).rejects.toBeInstanceOf(StepError)
     await expect(op.run()).rejects.toMatchObject({ stepName: "fail", stepIndex: 0, cause })
     expect(called).toBe(false)
@@ -148,12 +162,15 @@ describe("createAction", () => {
       .step("load", async ({ input }) => {
         return { count: input }
       })
+
     const first = base.step("first", ({ data, setOutput }) => {
       return setOutput(data.count + 1)
     })
+
     const second = base.step("second", ({ data, setOutput }) => {
       return setOutput(data.count + 2)
     })
+
     expect(await Promise.all([first.run(1), second.run(10), first.run(100)])).toEqual([
       { input: 1, output: 2 },
       { input: 10, output: 12 },
@@ -176,6 +193,7 @@ describe("createAction", () => {
       .step("check replacement", ({ data }) => {
         expect(data.count).toBe("two")
       })
+
     expect(await op.run()).toEqual({ input: undefined, output: undefined })
   })
 
@@ -186,6 +204,7 @@ describe("createAction", () => {
         return undefined
       }),
     ).toThrow(TypeError)
+
     for (const value of [null, 1, [], new Date()]) {
       await expect(
         createAction()
@@ -206,7 +225,9 @@ describe("createAction", () => {
         setOutput(1)
         setOutput(2)
       })
+
     expect(await op.run()).toEqual({ input: undefined, output: 2 })
+
     await expect(
       createAction()
         .output(z.number())
@@ -235,6 +256,7 @@ test("returns parsed defaults and stripped input with asynchronously transformed
       await Promise.resolve()
       setOutput(input.name.length)
     })
+
   const rawInput = { extra: "stripped" }
   const result = await action.run(rawInput as { name?: string })
   expect(result).toEqual({ input: { name: "Ada" }, output: "length: 3" })

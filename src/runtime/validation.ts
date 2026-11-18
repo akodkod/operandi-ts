@@ -15,12 +15,15 @@ export async function validate(
 export async function prepare(definition: Definition, rawInput: unknown): Promise<Prepared> {
   const middleware: Prepared[] = []
   let input: unknown
+
   for (const child of definition.middleware) {
     const prepared = await prepare(child, rawInput)
     middleware.push(prepared)
     input = combine(input, prepared.input)
   }
+
   if (definition.inputSchema)
     input = combine(input, await validate(definition.inputSchema, rawInput, "input"))
+
   return { definition, input, middleware }
 }

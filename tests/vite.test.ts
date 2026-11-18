@@ -51,7 +51,9 @@ test("customizes names with the factory type and safely escapes returned strings
     { name: "user", type: OperandiNameType.Action },
     { name: "auth", type: OperandiNameType.Middleware },
   ])
+
   expect(result?.code).toContain(`createAction(${JSON.stringify('action: "user"\n')})`)
+
   expect(result?.code).toContain(
     `createActionMiddleware(${JSON.stringify('middleware: "auth"\n')})`,
   )
@@ -98,6 +100,7 @@ export default createAction();
   expect(
     await transform('import { createAction } from "another-package"; const user = createAction();'),
   ).toBeNull()
+
   expect(
     await transform('import type { createAction } from "operandi"; const user = createAction();'),
   ).toBeNull()

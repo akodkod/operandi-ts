@@ -6,10 +6,13 @@ type AroundPhase = "aroundRun" | "aroundStep"
 type CallbackPhase = Exclude<HookPhase, AroundPhase>
 
 type Location = { stepName: string | undefined; stepIndex: number }
+
 export type Invocation = Location &
   ({ kind: "step"; entry: Step } | { kind: "hook"; entry: Step; phase: HookPhase })
+
 type CallbackInvocation = Location &
   ({ kind: "step"; entry: Step } | { kind: "hook"; entry: Step; phase: CallbackPhase })
+
 type AroundInvocation = Location & { kind: "hook"; entry: Step; phase: AroundPhase }
 
 export type InvocationEnvironment = {
@@ -41,6 +44,7 @@ function createContext(
     setOutput(value: unknown) {
       if (!lifetime.active)
         throw new Error("setOutput must be called before the step or hook finishes")
+
       if (around) throw new Error("Around hooks cannot set output")
       environment.setOutput(value)
     },
@@ -52,10 +56,12 @@ export async function invokeCallback(
   invocation: CallbackInvocation,
 ) {
   const lifetime = { active: true }
+
   try {
     const result = await invocation.entry.handler(
       createContext(environment, invocation, lifetime, false),
     )
+
     if (
       invocation.kind === "hook" &&
       (invocation.phase === "afterRun" || invocation.phase === "afterStep")
@@ -82,25 +88,32 @@ export async function invokeAround(
     invalid: boolean
     failure: { cause: unknown } | undefined
   } = { active: true, pending: undefined, invalid: false, failure: undefined }
+
   const run = () => {
     if (!state.active || state.pending) {
       state.invalid = true
       throw new TypeError("A continuation must be called exactly once while its hook is active")
     }
+
     state.pending = continuation()
 
     // Observe rejection even when the wrapper does not await its continuation
     void state.pending.catch((cause: unknown) => {
       state.failure = { cause }
     })
+
     return state.pending
   }
+
   const context = createContext(environment, invocation, state, true)
   Object.assign(context, invocation.phase === "aroundRun" ? { run } : { runStep: run })
+
   try {
     const result = await invocation.entry.handler(context)
+
     if (!state.pending || state.invalid)
       throw new TypeError("An around hook must call its continuation exactly once")
+
     await state.pending
     if (result !== undefined) throw new TypeError("Around hooks must return void")
   } catch (cause) {
@@ -112,10 +125,12 @@ export async function invokeAround(
         /* Failure identity is checked below */
       }
     }
+
     if (state.failure && cause === state.failure.cause) throw cause
     await environment.fail(cause, invocation)
   } finally {
     state.active = false
   }
+
   if (state.failure) throw state.failure.cause
 }

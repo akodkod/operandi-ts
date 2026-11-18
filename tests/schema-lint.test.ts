@@ -7,8 +7,10 @@ import { join, resolve } from "node:path"
 
 const prelude =
   'import { createAction, createActionMiddleware } from "operandi"; import { z } from "zod";\n'
+
 const valid =
   "createAction().input(\n  z.object({\n    id: z.string(),\n    name: z.string(),\n  }),\n);"
+
 const cases = [
   {
     name: "empty input stays inline",
@@ -89,7 +91,8 @@ const cases = [
   },
   {
     name: "closing brace shares a property line",
-    code: prelude + "createAction().input(\n z.object({\n id: z.string(),\n name: z.string() }),\n);",
+    code:
+      prelude + "createAction().input(\n z.object({\n id: z.string(),\n name: z.string() }),\n);",
     count: 1,
   },
   {
@@ -194,7 +197,9 @@ for (const fixture of cases) {
       plugins: { operandi: plugin },
       rules: { "operandi/multiline-schema": "error" },
     })
+
     expect(messages).toHaveLength(fixture.count)
+
     for (const message of messages) {
       expect(message.ruleId).toBe("operandi/multiline-schema")
       expect(message.messageId).toBe("multiline")
@@ -206,34 +211,42 @@ test("multiline-schema is opt-in and supports configured import sources", () => 
   const code =
     prelude.replace('"operandi"', '"../src/index"') +
     "createAction().input(z.object({ id: z.string(), name: z.string() }));"
+
   const linter = new Linter()
   expect(linter.verify(code, { plugins: { operandi: plugin } })).toEqual([])
+
   expect(
     linter.verify(code, {
       plugins: { operandi: plugin },
       rules: { "operandi/multiline-schema": "error" },
     }),
   ).toEqual([])
+
   const messages = linter.verify(code, {
     plugins: { operandi: plugin },
     rules: {
       "operandi/multiline-schema": ["error", { importSources: ["operandi", "../src/index"] }],
     },
   })
+
   expect(messages).toHaveLength(1)
   expect(messages[0]?.ruleId).toBe("operandi/multiline-schema")
 })
 
 test("multiline-schema runs in Oxlint across files and TypeScript wrappers", async () => {
   const directory = await mkdtemp(join(tmpdir(), "operandi-schema-lint-"))
+
   try {
     const config = join(directory, ".oxlintrc.json")
+
     const build = await Bun.build({
       entrypoints: [resolve("src/oxlint.ts")],
       outdir: directory,
       target: "node",
     })
+
     expect(build.success).toBe(true)
+
     await writeFile(
       config,
       JSON.stringify({
@@ -244,6 +257,7 @@ test("multiline-schema runs in Oxlint across files and TypeScript wrappers", asy
         },
       }),
     )
+
     const fixtures = [
       ...cases,
       {
@@ -267,12 +281,15 @@ test("multiline-schema runs in Oxlint across files and TypeScript wrappers", asy
         count: 1,
       },
     ]
+
     const filenames: string[] = []
+
     for (const [index, fixture] of fixtures.entries()) {
       const filename = join(directory, `fixture-${index}.ts`)
       filenames.push(filename)
       await writeFile(filename, fixture.code)
     }
+
     const result = Bun.spawnSync([
       process.execPath,
       resolve("node_modules/oxlint/bin/oxlint"),
@@ -284,17 +301,22 @@ test("multiline-schema runs in Oxlint across files and TypeScript wrappers", asy
       "json",
       ...filenames,
     ])
+
     expect(result.exitCode).toBe(1)
+
     const diagnostics = JSON.parse(result.stdout.toString()).diagnostics as {
       filename: string
       code: string
     }[]
+
     expect(diagnostics).toHaveLength(fixtures.reduce((count, fixture) => count + fixture.count, 0))
+
     for (const [index, fixture] of fixtures.entries()) {
       expect(
         diagnostics.filter((diagnostic) => diagnostic.filename.endsWith(`/fixture-${index}.ts`)),
       ).toHaveLength(fixture.count)
     }
+
     expect(diagnostics.every((diagnostic) => diagnostic.code.includes("multiline-schema"))).toBe(
       true,
     )
@@ -303,6 +325,7 @@ test("multiline-schema runs in Oxlint across files and TypeScript wrappers", asy
     await writeFile(formatted, prelude + valid)
     const format = Bun.spawnSync([process.execPath, "fmt", formatted])
     expect(format.exitCode).toBe(0)
+
     expect(
       new Linter().verify(await readFile(formatted, "utf8"), {
         plugins: { operandi: plugin },

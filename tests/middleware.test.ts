@@ -18,20 +18,24 @@ test("rejects non-object input merges before any steps execute", async () => {
       let calls = 0
       const invalid = z.unknown().transform(() => value)
       const valid = z.unknown().transform(() => ({ valid: true }))
+
       const middleware = createActionMiddleware()
         .input((invalidFirst ? invalid : valid) as never)
         .step("middleware", () => {
           calls++
         })
+
       const action = createAction()
         .use(middleware)
         .input((invalidFirst ? valid : invalid) as never)
         .step("action", () => {
           calls++
         })
+
       await expect(action.run({} as never)).rejects.toThrow(
         new TypeError("Middleware input and output must be plain objects"),
       )
+
       expect(calls).toBe(0)
     }
   }
@@ -43,9 +47,11 @@ test("rejects non-object output merges", async () => {
       const invalid = z.unknown().transform(() => value)
       const valid = z.unknown().transform(() => ({ valid: true }))
       const middleware = createActionMiddleware().output((invalidFirst ? invalid : valid) as never)
+
       const action = createAction()
         .use(middleware)
         .output((invalidFirst ? valid : invalid) as never)
+
       await expect(action.run()).rejects.toThrow(
         new TypeError("Middleware input and output must be plain objects"),
       )
@@ -55,6 +61,7 @@ test("rejects non-object output merges", async () => {
 
 test("middleware merges user input, output, and data with an action", async () => {
   const events: string[] = []
+
   const withUser = createActionMiddleware()
     .input(
       z.object({
@@ -71,6 +78,7 @@ test("middleware merges user input, output, and data with an action", async () =
       setOutput({ authenticated: true })
       return { user: { id: input.userId } }
     })
+
   const action = createAction()
     .use(withUser)
     .input(
@@ -88,11 +96,14 @@ test("middleware merges user input, output, and data with an action", async () =
       expect(data.user.id).toBe(input.userId)
       setOutput({ length: input.message.length })
     })
+
   expect(await action.run({ userId: 1, message: "hello" })).toEqual({
     input: { userId: 1, message: "hello" },
     output: { authenticated: true, length: 5 },
   })
+
   expect(events).toEqual(["user 1", "1: hello"])
+
   expect(await withUser.run({ userId: 2 })).toEqual({
     input: { userId: 2 },
     output: { authenticated: true },
@@ -101,6 +112,7 @@ test("middleware merges user input, output, and data with an action", async () =
 
 test("validates every input before any middleware side effects", async () => {
   let calls = 0
+
   const middleware = createActionMiddleware()
     .input(
       z.object({
@@ -110,6 +122,7 @@ test("validates every input before any middleware side effects", async () => {
     .step("effect", () => {
       calls++
     })
+
   const action = createAction()
     .use(middleware)
     .input(
@@ -117,6 +130,7 @@ test("validates every input before any middleware side effects", async () => {
         message: z.string(),
       }),
     )
+
   await expect(action.run({ message: "hi" } as never)).rejects.toMatchObject({ phase: "input" })
   await expect(action.run({ userId: 1 } as never)).rejects.toMatchObject({ phase: "input" })
   expect(calls).toBe(0)
@@ -124,12 +138,14 @@ test("validates every input before any middleware side effects", async () => {
 
 test("composes nested and multiple middleware across schema libraries", async () => {
   const order: string[] = []
+
   const user = createActionMiddleware()
     .input(v.object({ userId: v.number() }))
     .step("user", () => {
       order.push("user")
       return { a: 1 }
     })
+
   const workspace = createActionMiddleware()
     .use(user)
     .input(type({ workspaceId: "number" }))
@@ -139,6 +155,7 @@ test("composes nested and multiple middleware across schema libraries", async ()
       order.push("workspace")
       return { b: 2 }
     })
+
   const audit = createActionMiddleware()
     .output(
       z.object({
@@ -149,6 +166,7 @@ test("composes nested and multiple middleware across schema libraries", async ()
       order.push("audit")
       setOutput({ audited: true })
     })
+
   const action = createAction()
     .use(workspace)
     .use(audit)
@@ -162,10 +180,12 @@ test("composes nested and multiple middleware across schema libraries", async ()
       expect(data).toEqual({ a: 1, b: 2 })
       order.push("action")
     })
+
   expect(await action.run({ userId: 1, workspaceId: 2, message: "hi" })).toEqual({
     input: { userId: 1, workspaceId: 2, message: "hi" },
     output: { audited: true },
   })
+
   expect(order).toEqual(["user", "workspace", "audit", "action"])
 })
 
@@ -185,6 +205,7 @@ test("isolates transformed inputs and outputs; later fields win in the action", 
       expect(input.value).toBe(42)
       setOutput({ value: input.value })
     })
+
   const action = createAction()
     .use(middleware)
     .input(
@@ -201,6 +222,7 @@ test("isolates transformed inputs and outputs; later fields win in the action", 
       expect(input.value).toBe(2)
       setOutput({ value: true })
     })
+
   expect(await action.run({ value: "42" })).toEqual({
     input: { value: 2 },
     output: { value: true },
@@ -209,11 +231,13 @@ test("isolates transformed inputs and outputs; later fields win in the action", 
 
 test("middleware failures stop the action, including invalid output", async () => {
   let called = false
+
   const missingOutput = createActionMiddleware().output(
     z.object({
       required: z.string(),
     }),
   )
+
   await expect(
     createAction()
       .use(missingOutput)
@@ -222,10 +246,13 @@ test("middleware failures stop the action, including invalid output", async () =
       })
       .run(),
   ).rejects.toMatchObject({ phase: "output" })
+
   const cause = new Error("unauthorized")
+
   const failure = createActionMiddleware().step("authenticate", () => {
     throw cause
   })
+
   await expect(
     createAction()
       .use(failure)
@@ -234,6 +261,7 @@ test("middleware failures stop the action, including invalid output", async () =
       })
       .run(),
   ).rejects.toMatchObject({ stepName: "authenticate", cause })
+
   expect(called).toBe(false)
 })
 
@@ -253,7 +281,9 @@ test("middleware can be reused, branched, and executed concurrently", async () =
       await Promise.resolve()
       setOutput(input)
     })
+
   const base = createAction().use(middleware)
+
   const first = base
     .output(
       z.object({
@@ -263,6 +293,7 @@ test("middleware can be reused, branched, and executed concurrently", async () =
     .step("first", ({ setOutput }) => {
       return setOutput({ tag: "first" })
     })
+
   const second = base
     .output(
       z.object({
@@ -272,6 +303,7 @@ test("middleware can be reused, branched, and executed concurrently", async () =
     .step("second", ({ setOutput }) => {
       return setOutput({ tag: "second" })
     })
+
   expect(
     await Promise.all([
       first.run({ userId: 1 }),
@@ -289,12 +321,14 @@ test("schema-less middleware and middleware-only actions work", async () => {
   const middleware = createActionMiddleware().step("resource", () => {
     return { resource: 1 }
   })
+
   await createAction()
     .use(middleware)
     .step("action", ({ data }) => {
       expect(data.resource).toBe(1)
     })
     .run()
+
   expect(
     await createAction()
       .use(

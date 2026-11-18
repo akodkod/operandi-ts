@@ -1,40 +1,33 @@
-import type {
-  DeclaredError,
-  ErrorFactories,
-  ErrorMap,
-  HookError,
-  StepError,
-  UnexpectedError,
-  ValidationError,
-} from "./errors"
+// prettier-ignore
+import type { DeclaredError, ErrorFactories, ErrorMap, HookError, StepError, UnexpectedError, ValidationError } from "./errors"
 import type { StandardSchemaV1 } from "@standard-schema/spec"
 type Schema = StandardSchemaV1
 type MaybePromise<T> = T | PromiseLike<T>
 type Simplify<T> = { [K in keyof T]: T[K] }
 type Empty = Record<never, never>
 type OptionalKeys<T> = { [K in keyof T]-?: Empty extends Pick<T, K> ? K : never }[keyof T]
+
+type OptionalOverlap<A, B> = {
+  [K in keyof A as K extends OptionalKeys<B> ? K : never]: K extends keyof B ? A[K] | B[K] : never
+}
+
 type Merge<A, B> = B extends void
   ? A
   : B extends object
-    ? Simplify<
-        Omit<A, keyof B> &
-          Omit<B, OptionalKeys<B> & keyof A> & {
-            [K in keyof A as K extends OptionalKeys<B> ? K : never]: K extends keyof B
-              ? A[K] | B[K]
-              : never
-          }
-      >
+    ? Simplify<Omit<A, keyof B> & Omit<B, OptionalKeys<B> & keyof A> & OptionalOverlap<A, B>>
     : never
 
 type AddErrors<A, B> = Simplify<A & B>
 
+type FailedOperationResult<Input, E extends ErrorMap> = {
+  readonly input: Input | undefined
+  readonly output: undefined
+  readonly error: DeclaredError<E> | ValidationError | StepError | HookError | UnexpectedError
+}
+
 export type SafeOperationResult<Input, Output, E extends ErrorMap = Empty> =
   | (OperationResult<Input, Output> & { readonly error: undefined })
-  | {
-      readonly input: Input | undefined
-      readonly output: undefined
-      readonly error: DeclaredError<E> | ValidationError | StepError | HookError | UnexpectedError
-    }
+  | FailedOperationResult<Input, E>
 
 export type StepContext<Input, Data, Output, E extends ErrorMap = Empty> = {
   readonly errors: ErrorFactories<E>
@@ -57,6 +50,7 @@ export type HookPhase =
   | "beforeStep"
   | "afterStep"
   | "aroundStep"
+
 export type RunHookContext<Input, Data, Output, Errors extends ErrorMap = Empty> = StepContext<
   Input,
   Data,
@@ -66,6 +60,7 @@ export type RunHookContext<Input, Data, Output, Errors extends ErrorMap = Empty>
   readonly actionName: string | undefined
   readonly middlewareName: string | undefined
 }
+
 export type StepHookContext<Input, Data, Output, Errors extends ErrorMap = Empty> = RunHookContext<
   Input,
   Data,
@@ -79,6 +74,7 @@ export type StepHookContext<Input, Data, Output, Errors extends ErrorMap = Empty
 declare const actionState: unique symbol
 type Combine<A, B> = [A] extends [void] ? B : [B] extends [void] ? A : Merge<A, B>
 type RequiredInput<A, B> = [A] extends [void] ? B : [B] extends [void] ? A : Simplify<A & B>
+
 type ActionState = {
   raw: unknown
   input: unknown
@@ -92,6 +88,7 @@ type ActionState = {
   beforeStepData: unknown
   started: boolean
 }
+
 type InitialState<Kind extends ActionState["kind"]> = {
   raw: void
   input: void
@@ -105,23 +102,28 @@ type InitialState<Kind extends ActionState["kind"]> = {
   beforeStepData: Empty
   started: false
 }
+
 type Update<State extends ActionState, Patch> = Omit<State, keyof Patch> & Patch
 type BaseData<State extends ActionState> = Merge<State["data"], State["runData"]>
 type StepData<State extends ActionState> = Merge<BaseData<State>, State["beforeStepData"]>
 type FinalData<State extends ActionState> = BaseData<State>
+
 type RunContext<State extends ActionState, Data> = RunHookContext<
   State["input"],
   Data,
   State["outputInput"],
   State["errors"]
 >
+
 type PerStepContext<State extends ActionState, Data> = StepHookContext<
   State["input"],
   Data,
   State["outputInput"],
   State["errors"]
 >
+
 type HookResult = Record<string, unknown> | void
+
 type Arguments<State extends ActionState> = undefined extends State["raw"]
   ? [input?: State["raw"]]
   : [input: State["raw"]]

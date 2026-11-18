@@ -7,6 +7,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 
 const prelude = 'import { createAction, createActionMiddleware } from "operandi";\n'
+
 const cases = [
   { code: prelude + 'createAction().step("save", () => save());', count: 1 },
   { code: prelude + 'createAction()\n.input(schema)\n.step("save", () => save());', count: 1 },
@@ -45,6 +46,7 @@ const cases = [
 ]
 
 const hooks = ["beforeRun", "afterRun", "aroundRun", "beforeStep", "afterStep", "aroundStep"]
+
 for (const method of hooks) {
   cases.push(
     { code: prelude + `createAction()\n.${method}("hook", handler);`, count: 1 },
@@ -62,6 +64,7 @@ for (const method of hooks) {
     },
   )
 }
+
 cases.push(
   {
     code:
@@ -81,7 +84,9 @@ for (const [index, fixture] of cases.entries()) {
       plugins: { operandi: plugin },
       rules: { "operandi/multiline-steps": "error" },
     })
+
     expect(messages).toHaveLength(fixture.count)
+
     for (const message of messages) {
       expect(message.ruleId).toBe("operandi/multiline-steps")
       expect(message.messageId).toBe("multiline")
@@ -101,32 +106,38 @@ test("multiline-steps is opt-in", () => {
 test("multiline-steps supports configured import sources", () => {
   const code = 'import { createAction } from "../src/index"; createAction().step("a", handler);'
   const linter = new Linter()
+
   expect(
     linter.verify(code, {
       plugins: { operandi: plugin },
       rules: { "operandi/multiline-steps": "error" },
     }),
   ).toEqual([])
+
   const messages = linter.verify(code, {
     plugins: { operandi: plugin },
     rules: {
       "operandi/multiline-steps": ["error", { importSources: ["operandi", "../src/index"] }],
     },
   })
+
   expect(messages).toHaveLength(1)
   expect(messages[0]?.ruleId).toBe("operandi/multiline-steps")
 })
 
 test("multiline-steps runs in Oxlint, including TypeScript wrappers", async () => {
   const directory = await mkdtemp(join(tmpdir(), "operandi-lint-"))
+
   try {
     const build = await Bun.build({
       entrypoints: [resolve("src/oxlint.ts")],
       outdir: directory,
       target: "node",
     })
+
     expect(build.success).toBe(true)
     const config = join(directory, ".oxlintrc.json")
+
     await writeFile(
       config,
       JSON.stringify({
@@ -137,6 +148,7 @@ test("multiline-steps runs in Oxlint, including TypeScript wrappers", async () =
         },
       }),
     )
+
     const typescriptCases = [
       {
         code: 'import { createAction } from "../src/index"; createAction().step("a", handler);',
@@ -149,11 +161,14 @@ test("multiline-steps runs in Oxlint, including TypeScript wrappers", async () =
         count: 0,
       },
     ]
+
     const filenames: string[] = []
+
     for (const [index, fixture] of [...cases, ...typescriptCases].entries()) {
       const filename = join(directory, `fixture-${index}.ts`)
       filenames.push(filename)
       await writeFile(filename, fixture.code)
+
       const result = Bun.spawnSync([
         process.execPath,
         resolve("node_modules/oxlint/bin/oxlint"),
@@ -163,12 +178,15 @@ test("multiline-steps runs in Oxlint, including TypeScript wrappers", async () =
         "json",
         filename,
       ])
+
       const output = JSON.parse(result.stdout.toString())
       expect(output.diagnostics).toHaveLength(fixture.count)
       expect(result.exitCode).toBe(fixture.count ? 1 : 0)
+
       for (const diagnostic of output.diagnostics)
         expect(diagnostic.code).toContain("multiline-steps")
     }
+
     const batch = Bun.spawnSync([
       process.execPath,
       resolve("node_modules/oxlint/bin/oxlint"),
@@ -180,8 +198,10 @@ test("multiline-steps runs in Oxlint, including TypeScript wrappers", async () =
       "json",
       ...filenames,
     ])
+
     const diagnostics = JSON.parse(batch.stdout.toString()).diagnostics
     expect(batch.exitCode).toBe(1)
+
     expect(diagnostics).toHaveLength(
       [...cases, ...typescriptCases].reduce((count, fixture) => count + fixture.count, 0),
     )
@@ -202,6 +222,7 @@ test("multiline hook diagnostics name the offending method", () => {
       plugins: { operandi: plugin },
       rules: { "operandi/multiline-steps": "error" },
     })
+
     expect(messages[0]?.message).toBe(
       `Write this Operandi .${method}() call across multiple lines.`,
     )

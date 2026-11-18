@@ -1,10 +1,5 @@
-import {
-  createBindings,
-  importSourcesSchema,
-  memberName,
-  multilineMethods,
-  unwrap,
-} from "./shared.ts"
+// prettier-ignore
+import { createBindings, importSourcesSchema, memberName, multilineMethods, unwrap } from "./shared.ts"
 import type { CreateOnceRule } from "@oxlint/plugins"
 
 export const multilineSteps: CreateOnceRule = {

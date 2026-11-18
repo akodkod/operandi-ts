@@ -7,6 +7,7 @@ import { join, resolve } from "node:path"
 
 const prelude = 'import { createAction, createActionMiddleware } from "operandi";\n'
 const options = { ignore: ["API", "GraphQL"], importSources: ["operandi", "../src/index"] }
+
 const names = [
   { name: "fetch user", count: 0 },
   { name: "Fetch user", count: 1 },
@@ -35,6 +36,7 @@ const names = [
   { name: "🚀 launch", count: 1 },
   { name: "", count: 1 },
 ]
+
 const cases = [
   ...names.map(({ name, count }) => ({
     name: JSON.stringify(name),
@@ -106,7 +108,9 @@ for (const fixture of cases) {
       plugins: { operandi: plugin },
       rules: { "operandi/step-name-starts-with-lowercase": ["error", options] },
     })
+
     expect(messages).toHaveLength(fixture.count)
+
     for (const message of messages) {
       expect(message.ruleId).toBe("operandi/step-name-starts-with-lowercase")
       expect(message.messageId).toBe("lowercase")
@@ -119,12 +123,15 @@ test("step-name-starts-with-lowercase is opt-in and has no default ignored words
   const code = prelude + 'createAction().step("API request", handler);'
   const linter = new Linter()
   expect(linter.verify(code, { plugins: { operandi: plugin } })).toEqual([])
+
   const messages = linter.verify(code, {
     plugins: { operandi: plugin },
     rules: { "operandi/step-name-starts-with-lowercase": "error" },
   })
+
   expect(messages).toHaveLength(1)
   expect(messages[0]?.ruleId).toBe("operandi/step-name-starts-with-lowercase")
+
   expect(
     linter.verify(prelude + 'createAction().step("HTTP request", handler);', {
       plugins: { operandi: plugin },
@@ -135,14 +142,17 @@ test("step-name-starts-with-lowercase is opt-in and has no default ignored words
 
 test("step-name-starts-with-lowercase runs in Oxlint across files and TypeScript wrappers", async () => {
   const directory = await mkdtemp(join(tmpdir(), "operandi-step-name-"))
+
   try {
     const build = await Bun.build({
       entrypoints: [resolve("src/oxlint.ts")],
       outdir: directory,
       target: "node",
     })
+
     expect(build.success).toBe(true)
     const config = join(directory, ".oxlintrc.json")
+
     await writeFile(
       config,
       JSON.stringify({
@@ -151,6 +161,7 @@ test("step-name-starts-with-lowercase runs in Oxlint across files and TypeScript
         rules: { "operandi/step-name-starts-with-lowercase": ["error", options] },
       }),
     )
+
     const fixtures = [
       ...cases,
       { code: prelude + '(createAction() as Builder).step("Save" as const, handler);', count: 1 },
@@ -163,12 +174,15 @@ test("step-name-starts-with-lowercase runs in Oxlint across files and TypeScript
         count: 0,
       },
     ]
+
     const filenames: string[] = []
+
     for (const [index, fixture] of fixtures.entries()) {
       const filename = join(directory, `fixture-${index}.ts`)
       filenames.push(filename)
       await writeFile(filename, fixture.code)
     }
+
     const result = Bun.spawnSync([
       process.execPath,
       resolve("node_modules/oxlint/bin/oxlint"),
@@ -180,17 +194,22 @@ test("step-name-starts-with-lowercase runs in Oxlint across files and TypeScript
       "json",
       ...filenames,
     ])
+
     expect(result.exitCode).toBe(1)
+
     const diagnostics = JSON.parse(result.stdout.toString()).diagnostics as {
       filename: string
       code: string
     }[]
+
     expect(diagnostics).toHaveLength(fixtures.reduce((count, fixture) => count + fixture.count, 0))
+
     for (const [index, fixture] of fixtures.entries()) {
       expect(
         diagnostics.filter((diagnostic) => diagnostic.filename.endsWith(`/fixture-${index}.ts`)),
       ).toHaveLength(fixture.count)
     }
+
     expect(
       diagnostics.every((diagnostic) =>
         diagnostic.code.includes("step-name-starts-with-lowercase"),

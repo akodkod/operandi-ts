@@ -6,6 +6,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 
 const prelude = 'import { createAction, createActionMiddleware } from "operandi";\n'
+
 const cases = [
   { name: "const", code: prelude + "const action = createAction();", count: 0 },
   { name: "exported const", code: prelude + "export const action = createAction();", count: 0 },
@@ -203,7 +204,9 @@ for (const fixture of cases) {
       plugins: { operandi: plugin },
       rules: { "operandi/static-action-declaration": "error" },
     })
+
     expect(messages).toHaveLength(fixture.count)
+
     for (const message of messages) {
       expect(message.ruleId).toBe("operandi/static-action-declaration")
       expect(message.messageId).toBe("static")
@@ -216,30 +219,36 @@ test("static-action-declaration is opt-in and supports configured imports", () =
   const linter = new Linter()
   expect(linter.verify(prelude + "createAction();", { plugins: { operandi: plugin } })).toEqual([])
   const code = 'import { createAction } from "../src/index"; createAction();'
+
   expect(
     linter.verify(code, {
       plugins: { operandi: plugin },
       rules: { "operandi/static-action-declaration": "error" },
     }),
   ).toEqual([])
+
   const messages = linter.verify(code, {
     plugins: { operandi: plugin },
     rules: { "operandi/static-action-declaration": ["error", { importSources: ["../src/index"] }] },
   })
+
   expect(messages).toHaveLength(1)
   expect(messages[0]?.ruleId).toBe("operandi/static-action-declaration")
 })
 
 test("static-action-declaration runs in Oxlint across files and TypeScript wrappers", async () => {
   const directory = await mkdtemp(join(tmpdir(), "operandi-static-action-"))
+
   try {
     const build = await Bun.build({
       entrypoints: [resolve("src/oxlint.ts")],
       outdir: directory,
       target: "node",
     })
+
     expect(build.success).toBe(true)
     const config = join(directory, ".oxlintrc.json")
+
     await writeFile(
       config,
       JSON.stringify({
@@ -253,6 +262,7 @@ test("static-action-declaration runs in Oxlint across files and TypeScript wrapp
         },
       }),
     )
+
     const fixtures = [
       ...cases,
       { code: prelude + "const action = ((createAction() as unknown) as Action);", count: 0 },
@@ -270,12 +280,15 @@ test("static-action-declaration runs in Oxlint across files and TypeScript wrapp
       { code: 'import type { createAction } from "operandi"; createAction();', count: 0 },
       { code: 'import { createAction } from "../src/index"; createAction();', count: 1 },
     ]
+
     const filenames: string[] = []
+
     for (const [index, fixture] of fixtures.entries()) {
       const filename = join(directory, `fixture-${index}.ts`)
       filenames.push(filename)
       await writeFile(filename, fixture.code)
     }
+
     const result = Bun.spawnSync([
       process.execPath,
       resolve("node_modules/oxlint/bin/oxlint"),
@@ -287,17 +300,22 @@ test("static-action-declaration runs in Oxlint across files and TypeScript wrapp
       "json",
       ...filenames,
     ])
+
     expect(result.exitCode).toBe(1)
+
     const diagnostics = JSON.parse(result.stdout.toString()).diagnostics as {
       filename: string
       code: string
     }[]
+
     expect(diagnostics).toHaveLength(fixtures.reduce((count, fixture) => count + fixture.count, 0))
+
     for (const [index, fixture] of fixtures.entries()) {
       expect(
         diagnostics.filter((diagnostic) => diagnostic.filename.endsWith(`/fixture-${index}.ts`)),
       ).toHaveLength(fixture.count)
     }
+
     expect(
       diagnostics.every((diagnostic) => diagnostic.code.includes("static-action-declaration")),
     ).toBe(true)

@@ -3,6 +3,7 @@ import { z } from "zod"
 
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
+
 function assertType<_T extends true>() {}
 
 const operation = createAction()
@@ -14,6 +15,7 @@ const operation = createAction()
     void data.tx
     // @ts-expect-error Output setter accepts the schema's input, not its transformed output
     setOutput("wrong")
+
     return { tx: { commit: async () => {} }, count: 1 }
   })
   .step("overwrite", () => {
@@ -26,6 +28,7 @@ const operation = createAction()
     // @ts-expect-error Data is readonly, return an object to extend it
     data.count = "mutated"
   })
+
 assertType<Equal<ReturnType<typeof operation.run>, Promise<OperationResult<number, string>>>>()
 // @ts-expect-error Input is required
 operation.run()
@@ -35,18 +38,22 @@ operation.run(42)
 operation.input(z.number())
 // @ts-expect-error Cannot change the output schema after defining steps
 operation.output(z.string())
+
 // @ts-expect-error Step results must be objects or void
 createAction().step("primitive", () => {
   return 42
 })
+
 // @ts-expect-error Arrays are not step data objects
 createAction().step("array", () => {
   return [1, 2]
 })
+
 createAction().step("no output", ({ setOutput }) => {
   // @ts-expect-error No output setter without an output schema
   setOutput(1)
 })
+
 createAction()
   .step("base", () => {
     return { count: 1 }
@@ -57,6 +64,7 @@ createAction()
   .step("use", ({ data }) => {
     assertType<Equal<typeof data.count, number | string | undefined>>()
   })
+
 createAction()
   .step("conditional", (): { value: number } | void => {
     return undefined
@@ -65,6 +73,7 @@ createAction()
     // @ts-expect-error A conditional return does not guarantee this field exists
     data.value.toFixed()
   })
+
 createAction().input(z.string().optional()).run()
 
 const withUser = createActionMiddleware()
@@ -82,6 +91,7 @@ const withUser = createActionMiddleware()
     setOutput({ authenticated: true })
     return { user: { id: input.userId } }
   })
+
 const withMessage = createAction()
   .use(withUser)
   .input(
@@ -101,6 +111,7 @@ const withMessage = createAction()
     // @ts-expect-error Middleware output is set by its own steps
     setOutput({ authenticated: true })
   })
+
 assertType<
   Equal<
     ReturnType<typeof withMessage.run>,
@@ -112,6 +123,7 @@ assertType<
     >
   >
 >()
+
 withMessage.run({ userId: 1, message: "hello" })
 // @ts-expect-error Middleware input remains required
 withMessage.run({ message: "hello" })
@@ -127,18 +139,22 @@ createAction().use(withUser).input(z.string())
 createAction().use(withUser).output(z.string())
 // @ts-expect-error Middleware is configured before local schemas or steps
 withMessage.use(withUser)
+
 const middlewareOnly = createAction().use(withUser)
+
 assertType<
   Equal<
     ReturnType<typeof middlewareOnly.run>,
     Promise<OperationResult<{ userId: number }, { authenticated: boolean }>>
   >
 >()
+
 const transformedMiddleware = createActionMiddleware().input(
   z.object({
     value: z.string().transform(Number),
   }),
 )
+
 createAction()
   .use(transformedMiddleware)
   .input(
@@ -152,6 +168,7 @@ createAction()
 
 async function checkOperationResult() {
   const result = await withMessage.run({ userId: 1, message: "hello" })
+
   assertType<Equal<typeof result.input, { userId: number; message: string }>>()
   assertType<Equal<typeof result.output, { authenticated: boolean; length: number }>>()
   // @ts-expect-error Unknown input properties are not available
@@ -162,20 +179,29 @@ async function checkOperationResult() {
   void result.authenticated
   // @ts-expect-error Run result properties cannot be reassigned
   result.input = { userId: 2, message: "changed" }
+
   const transformed = await operation.run("42")
+
   assertType<Equal<typeof transformed.input, number>>()
+
   assertType<Equal<typeof transformed.output, string>>()
   const empty = await createAction().run()
+
   assertType<Equal<typeof empty.input, void>>()
+
   assertType<Equal<typeof empty.output, void>>()
   const optional = await createAction().input(z.string().optional()).run()
+
   assertType<Equal<typeof optional.input, string | undefined>>()
+
   // @ts-expect-error Await the completed run before accessing its result
   void withMessage.run({ userId: 1, message: "hello" }).input
 }
+
 void checkOperationResult
 
 const authErrors = createActionMiddleware().errors({ UNAUTHORIZED: {} })
+
 const errorAction = createAction()
   .use(authErrors)
   .input(
@@ -204,11 +230,14 @@ const errorAction = createAction()
     errors.UNAUTHORIZED({ data: 1 })
     setOutput("done")
   })
+
 async function checkSafeErrors() {
   const result = await errorAction.runSafe({ id: 1 })
+
   if (result.error) {
     assertType<Equal<typeof result.output, undefined>>()
     assertType<Equal<typeof result.input, { id: number } | undefined>>()
+
     if (result.error.code === "MISSING") {
       assertType<Equal<typeof result.error.data, { id: number }>>()
       // @ts-expect-error Only the declared data is available
@@ -222,11 +251,13 @@ async function checkSafeErrors() {
     assertType<Equal<typeof result.input, { id: number }>>()
     assertType<Equal<typeof result.output, string>>()
   }
+
   // @ts-expect-error Safe execution still requires the input
   errorAction.runSafe()
   // @ts-expect-error Safe execution still checks input types
   errorAction.runSafe({ id: "wrong" })
 }
+
 void checkSafeErrors
 
 const lifecycle = createAction("Named action")
@@ -266,32 +297,40 @@ const lifecycle = createAction("Named action")
   .afterRun("observe work", ({ data }) => {
     assertType<Equal<typeof data.finished, boolean>>()
   })
+
 // @ts-expect-error afterRun does not produce data
 createAction().afterRun("bad", () => {
   return { unused: true }
 })
+
 // @ts-expect-error Async afterRun does not produce data either
 createAction().afterRun("bad", async () => {
   return { unused: true }
 })
+
 // @ts-expect-error afterStep does not produce data
 createAction().afterStep("bad", () => {
   return { unused: true }
 })
+
 // @ts-expect-error Async afterStep does not produce data either
 createAction().afterStep("bad", async () => {
   return { unused: true }
 })
+
 // @ts-expect-error Lifecycle setup hooks must precede steps
 lifecycle.beforeRun("late", () => {
   return undefined
 })
+
 // @ts-expect-error Actions cannot be used as middleware
 createAction().use(createAction())
+
 createAction().beforeRun("data", ({ data }) => {
   // @ts-expect-error A beforeRun cannot depend on later step data
   void data.finished
 })
+
 createAction()
   .beforeStep("data", () => {
     return { stepStart: 1 }
@@ -300,6 +339,7 @@ createAction()
     // @ts-expect-error With no steps, beforeStep has not run
     void data.stepStart
   })
+
 createAction().aroundRun("trace", async ({ run, data }) => {
   // @ts-expect-error Unknown data is unavailable
   void data.missing

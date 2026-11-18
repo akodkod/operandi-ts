@@ -264,7 +264,7 @@
         "@stylistic/computed-property-spacing": ["error", "never"],
         "@stylistic/eol-last": ["error", "always"],
         "@stylistic/function-call-spacing": ["error", "never"],
-        "@stylistic/indent": ["error", 2],
+        "@stylistic/indent": ["error", 2, { "offsetTernaryExpressions": true }],
         "@stylistic/key-spacing": "error",
         "@stylistic/keyword-spacing": "error",
         "@stylistic/lines-between-class-members": [
@@ -369,17 +369,6 @@
       "files": ["**/*.config.{ts,js,mts,mjs}"],
       "rules": {
         "import/no-default-export": "off"
-      }
-    },
-    {
-      "files": ["**/*.ts"],
-      "rules": {
-        "@stylistic/indent": "off",
-        "@stylistic/member-delimiter-style": "off",
-        "@stylistic/padding-line-between-statements": "off",
-        "sane/multiline-padding": "off",
-        "sane/no-code-wall": "off",
-        "import-newlines/enforce": "off"
       }
     },
     {

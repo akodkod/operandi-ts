@@ -5,6 +5,7 @@ export function mergeErrors(current: ErrorMap, added: ErrorMap): ErrorMap {
   for (const code of Object.keys(added)) {
     if (Object.hasOwn(current, code)) throw new TypeError(`Duplicate error code: ${code}`)
   }
+
   return {
     ...current,
     ...Object.fromEntries(

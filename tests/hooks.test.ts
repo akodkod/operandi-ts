@@ -1,10 +1,5 @@
-import {
-  createAction,
-  createActionMiddleware,
-  HookError,
-  OperandiError,
-  StepError,
-} from "../src/index"
+// prettier-ignore
+import { createAction, createActionMiddleware, HookError, OperandiError, StepError } from "../src/index"
 import { expect, test } from "bun:test"
 import { z } from "zod"
 
@@ -13,6 +8,7 @@ test("rejects hooks that must be registered before steps", () => {
     const action = createAction().step("work", () => {
       return undefined
     }) as unknown as ReturnType<typeof createAction>
+
     expect(() => action[phase]("late", () => {})).toThrow(
       new TypeError(`${phase} must be registered before steps`),
     )
@@ -21,6 +17,7 @@ test("rejects hooks that must be registered before steps", () => {
 
 test("runs all lifecycle phases in order and nests wrappers", async () => {
   const events: string[] = []
+
   const action = createAction("Named action")
     .input(z.number())
     .output(z.number())
@@ -68,7 +65,9 @@ test("runs all lifecycle phases in order and nests wrappers", async () => {
       events.push("second")
       setOutput(data.doubled)
     })
+
   expect(await action.run(3)).toEqual({ input: 3, output: 6 })
+
   expect(events).toEqual([
     "outer enter",
     "inner enter",
@@ -94,6 +93,7 @@ test("after hooks return nothing; runtime rejects values from untyped callbacks"
     const base = createAction()
     const action = base[phase]("invalid", () => ({ unused: true }) as never).step("work", () => {})
     await expect(action.run()).rejects.toBeInstanceOf(HookError)
+
     expect((await action.runSafe()).error).toMatchObject({
       phase,
       hookName: "invalid",
@@ -122,12 +122,14 @@ test("before hooks chain their data and afterRun can observe completed step data
     .afterRun("check", ({ data }) => {
       expect(data.fifth).toBe(5)
     })
+
   await action.run()
 })
 
 test("after hooks skip failures and around hooks can clean up in finally", async () => {
   const events: string[] = []
   const cause = new Error("failed step")
+
   const action = createAction()
     .afterRun("after run", () => {
       events.push("after run")
@@ -152,12 +154,14 @@ test("after hooks skip failures and around hooks can clean up in finally", async
     .step("fail", () => {
       throw cause
     })
+
   await expect(action.run()).rejects.toBeInstanceOf(StepError)
   expect(events).toEqual(["cleanup step", "cleanup run"])
 })
 
 test("hook failures and declared errors retain their identity through wrappers", async () => {
   const cause = new Error("hook failed")
+
   const action = createAction("Failures")
     .aroundRun("wrap", async ({ run }) => {
       await run()
@@ -168,6 +172,7 @@ test("hook failures and declared errors retain their identity through wrappers",
     .step("work", () => {
       return undefined
     })
+
   expect((await action.runSafe()).error).toMatchObject({
     name: "HookError",
     phase: "beforeStep",
@@ -176,6 +181,7 @@ test("hook failures and declared errors retain their identity through wrappers",
     stepName: "work",
     cause,
   })
+
   const declared = createAction()
     .errors({ DENIED: { data: z.number() } })
     .aroundRun("wrap", async ({ run }) => {
@@ -184,6 +190,7 @@ test("hook failures and declared errors retain their identity through wrappers",
     .beforeRun("deny", ({ errors }) => {
       throw errors.DENIED({ data: 1 })
     })
+
   await expect(declared.run()).rejects.toBeInstanceOf(OperandiError)
   expect((await declared.runSafe()).error).toMatchObject({ code: "DENIED", data: 1 })
 })
@@ -192,11 +199,14 @@ test("continuations must run once and cannot hide inner failures", async () => {
   const skipped = createAction().aroundRun("skip", () => {
     return undefined
   })
+
   expect((await skipped.runSafe()).error).toMatchObject({
     phase: "aroundRun",
     cause: expect.any(TypeError),
   })
+
   let executions = 0
+
   const twice = createAction()
     .aroundStep("twice", async ({ runStep }) => {
       await runStep()
@@ -205,8 +215,10 @@ test("continuations must run once and cannot hide inner failures", async () => {
     .step("work", () => {
       executions++
     })
+
   expect((await twice.runSafe()).error).toMatchObject({ phase: "aroundStep" })
   expect(executions).toBe(1)
+
   const swallowed = createAction()
     .aroundRun("swallow", async ({ run }) => {
       try {
@@ -218,11 +230,13 @@ test("continuations must run once and cannot hide inner failures", async () => {
     .step("fail", () => {
       throw new Error("original")
     })
+
   expect((await swallowed.runSafe()).error).toMatchObject({ name: "StepError", stepName: "fail" })
 })
 
 test("awaits continuations even if a wrapper forgets to await them", async () => {
   let done = false
+
   const action = createAction()
     .aroundRun("unawaited", ({ run }) => {
       void run()
@@ -231,17 +245,20 @@ test("awaits continuations even if a wrapper forgets to await them", async () =>
       await Promise.resolve()
       done = true
     })
+
   await action.run()
   expect(done).toBe(true)
 })
 
 test("runSafe runs the same hooks and concurrent runs own their data", async () => {
   const seen: number[] = []
+
   const base = createAction()
     .input(z.number())
     .beforeRun("start", ({ input }) => {
       return { requestId: input }
     })
+
   const action = base
     .step("work", async ({ input, data }) => {
       await Promise.resolve()
@@ -250,6 +267,7 @@ test("runSafe runs the same hooks and concurrent runs own their data", async () 
     .afterRun("record", ({ data }) => {
       seen.push(data.requestId)
     })
+
   const results = await Promise.all([action.runSafe(1), action.runSafe(2), base.runSafe(3)])
   expect(results.every((result) => result.error === undefined)).toBe(true)
   expect(seen.sort()).toEqual([1, 2])
@@ -270,16 +288,19 @@ test("middleware hooks have their own name and data plus the consuming action na
     .afterRun("middleware end", ({ data }) => {
       expect(data.authenticated).toBe(true)
     })
+
   const action = createAction("Send message")
     .use(middleware)
     .step("send", ({ data }) => {
       expect(data.authenticated).toBe(true)
     })
+
   await action.run({ userId: 1 })
 })
 
 test("empty and invalid runs have consistent lifecycle behavior", async () => {
   const events: string[] = []
+
   const action = createAction()
     .input(z.number())
     .beforeRun("before", () => {
@@ -291,10 +312,12 @@ test("empty and invalid runs have consistent lifecycle behavior", async () => {
     .beforeStep("step", () => {
       events.push("step")
     })
+
   await action.run(1)
   expect(events).toEqual(["before", "after"])
   await action.runSafe("invalid" as never)
   expect(events).toEqual(["before", "after"])
+
   expect(() =>
     createAction().beforeRun(" ", () => {
       return undefined
@@ -313,6 +336,7 @@ test("hooked runs reject data collisions instead of violating captured hook type
     .step("overwrite", () => {
       return { startTime: "wrong" }
     })
+
   expect((await action.runSafe()).error).toMatchObject({
     name: "StepError",
     cause: expect.any(TypeError),
@@ -326,6 +350,7 @@ test("waits for pending work before reporting a distinct wrapper failure", async
       const release = Promise.withResolvers<undefined>()
       const wrapperError = new Error("wrapper")
       let finished = false
+
       const action = createAction()
         .aroundRun("wrapper", ({ run }) => {
           void run()
@@ -337,7 +362,9 @@ test("waits for pending work before reporting a distinct wrapper failure", async
           finished = true
           if (innerFails) throw new Error("inner")
         })
+
       let settled = false
+
       const result = (
         safe
           ? action.runSafe().then((value) => value.error)
@@ -346,15 +373,18 @@ test("waits for pending work before reporting a distinct wrapper failure", async
         settled = true
         return error
       })
+
       await started.promise
       await Promise.resolve()
       expect(settled).toBe(false)
       release.resolve(undefined)
+
       expect(await result).toMatchObject({
         name: "HookError",
         hookName: "wrapper",
         cause: wrapperError,
       })
+
       expect(finished).toBe(true)
     }
   }
@@ -363,10 +393,12 @@ test("waits for pending work before reporting a distinct wrapper failure", async
 test("caught duplicate and late continuations never execute the body again", async () => {
   let executions = 0
   let captured: (() => Promise<void>) | undefined
+
   const action = createAction()
     .aroundRun("twice", async ({ run }) => {
       captured = run
       await run()
+
       try {
         await run()
       } catch {
@@ -376,6 +408,7 @@ test("caught duplicate and late continuations never execute the body again", asy
     .step("work", () => {
       executions++
     })
+
   expect((await action.runSafe()).error).toMatchObject({ name: "HookError" })
   expect(() => captured!()).toThrow("exactly once")
   expect(executions).toBe(1)
@@ -384,6 +417,7 @@ test("caught duplicate and late continuations never execute the body again", asy
 test("nested wrappers preserve normalized error identity and validate once", async () => {
   let validations = 0
   const seen: unknown[] = []
+
   const action = createAction()
     .errors({
       BAD: {
@@ -412,16 +446,20 @@ test("nested wrappers preserve normalized error identity and validate once", asy
     .step("fail", ({ errors }) => {
       throw errors.BAD({ data: "bad" })
     })
+
   const operation = await action.runSafe()
+
   expect(validations).toBe(1)
   expect(operation.error).toMatchObject({ code: "BAD", data: 3 })
   expect(seen).toHaveLength(2)
+
   for (const error of seen) expect(error).toBe(operation.error)
 })
 
 test("around contexts expose fresh frozen data snapshots", async () => {
   let before: object | undefined
   let after: object | undefined
+
   await createAction()
     .aroundRun("observe", async (context) => {
       before = context.data
@@ -432,6 +470,7 @@ test("around contexts expose fresh frozen data snapshots", async () => {
       return { value: 42 }
     })
     .run()
+
   expect(before).toEqual({})
   expect(after).toEqual({ value: 42 })
   expect(before).not.toBe(after)
@@ -441,23 +480,30 @@ test("around contexts expose fresh frozen data snapshots", async () => {
 
 test("output setters expire and around hooks cannot use untyped setters", async () => {
   let setter: ((value: number) => void) | undefined
+
   const action = createAction()
     .output(z.number())
     .step("set", ({ setOutput }) => {
       setter = setOutput
       setOutput(1)
     })
+
   expect((await action.run()).output).toBe(1)
   expect(() => setter!(2)).toThrow("before the step or hook finishes")
+
   const invalid = createAction()
     .output(z.number())
     .aroundRun("invalid", async (context) => {
       await context.run()
-      ;(context as unknown as { setOutput: (value: number) => void }).setOutput(2)
+
+      const untypedContext = context as unknown as { setOutput: (value: number) => void }
+
+      untypedContext.setOutput(2)
     })
     .step("set", ({ setOutput }) => {
       return setOutput(1)
     })
+
   expect((await invalid.runSafe()).error).toMatchObject({
     name: "HookError",
     cause: expect.objectContaining({ message: "Around hooks cannot set output" }),
