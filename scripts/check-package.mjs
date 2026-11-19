@@ -21,12 +21,20 @@ const fixtures = {
   core: {
     dependencies: {},
     source: `import assert from "node:assert/strict";
-import { createAction, createActionMiddleware, StepError } from "operandi-ts";
-assert.deepEqual(await createAction().run(), { input: undefined, output: undefined });
+import * as api from "operandi-ts";
+import { createAction, createActionMiddleware, isOperationResult, StepError } from "operandi-ts";
+const success = await createAction().run();
+assert.deepEqual(success, { input: undefined, output: undefined });
+assert.ok(isOperationResult(success));
+assert.ok(isOperationResult(await createAction().runSafe()));
+assert.equal(JSON.stringify(success), "{}");
+assert.equal("operationResultBrand" in api, false);
+assert.equal("createOperationResult" in api, false);
 const result = await createAction().step("fail", () => { throw Error("cause"); }).runSafe();
+assert.equal(isOperationResult(result), false);
 assert.ok(result.error instanceof StepError);
 assert.equal(typeof createActionMiddleware, "function");`,
-    types: `import { createAction, type StandardSchemaV1 } from "operandi-ts";
+    types: `import { createAction, isOperationResult, type OperationResult, type StandardSchemaV1 } from "operandi-ts";
 const schema: StandardSchemaV1<{ value: number }, { value: number }> = {
   "~standard": { version: 1, vendor: "fixture", validate: value => ({value: value as {value: number}}) }
 };
@@ -37,6 +45,15 @@ const operation = await action.run({ value: 1 });
 const input: number = operation.input.value;
 const output: number = operation.output.value;
 const safe = await action.runSafe({ value: 1 });
+if (isOperationResult(safe)) {
+  const input: number = safe.input.value;
+  const output: number = safe.output.value;
+  const error: undefined = safe.error;
+}
+const unknown: unknown = operation;
+if (isOperationResult(unknown)) { const branded: OperationResult<unknown, unknown> = unknown; }
+// @ts-expect-error The result brand is required
+const unbranded: OperationResult<number, number> = { input: 1, output: 1 };
 if (safe.error?.code === "BAD") { const value: number = safe.error.data.value; }
 // @ts-expect-error Required input field
 await action.run({});

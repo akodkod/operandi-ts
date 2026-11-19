@@ -3,6 +3,7 @@ import { type ErrorMap, HookError, OperandiError, StepError, UnexpectedError, Va
 import type { Definition, Prepared, Schema, Step } from "./runtime/definition"
 import { mergeErrors } from "./runtime/error-factories"
 import { execute } from "./runtime/execute"
+import { createOperationResult } from "./runtime/result"
 import { prepare } from "./runtime/validation"
 import type { Action, ActionMiddleware, HookPhase } from "./types"
 
@@ -61,7 +62,7 @@ function create(definition: Definition): Action {
     async run(rawInput: unknown) {
       const prepared = await prepare(definition, rawInput)
       const { output } = await execute(prepared, new Set())
-      return { input: prepared.input, output }
+      return createOperationResult(prepared.input, output)
     },
     async runSafe(rawInput: unknown) {
       let prepared: Prepared | undefined
@@ -70,7 +71,7 @@ function create(definition: Definition): Action {
       try {
         prepared = await prepare(definition, rawInput)
         const { output } = await execute(prepared, declaredErrors)
-        return { input: prepared.input, output, error: undefined }
+        return Object.assign(createOperationResult(prepared.input, output), { error: undefined })
       } catch (cause) {
         const error =
           cause instanceof ValidationError ||

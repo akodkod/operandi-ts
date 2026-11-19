@@ -72,6 +72,26 @@ readonly `input` and `output` properties. Without an input schema, `input` is
 `undefined`; without an output schema, `output` is `undefined` (unless middleware
 provides it).
 
+Use the root export `isOperationResult(value)` to identify successful results at
+runtime, including successful `.runSafe()` results:
+
+```ts
+import { isOperationResult } from "operandi"
+
+function unwrap(value: unknown) {
+  return isOperationResult(value) ? value.output : value
+}
+```
+
+`OperationResult<Input, Output>` carries a non-enumerable symbol brand using
+`Symbol.for("operandi.OperationResult.v1")`, shared across package copies. The
+symbol and result factory are internal; only the guard is exported. Failed
+`.runSafe()` results and plain `{ input, output }` objects are not recognized.
+Results with `undefined` output are recognized. Input/output inference, enumerable
+keys, and JSON serialization stay unchanged. The brand is not preserved by JSON
+round-tripping or object spread; the guard identifies in-memory results and is
+not a validator for untrusted data.
+
 Each step receives validated `input`, accumulated `data`, and (when an output
 schema exists) a typed `setOutput`. Steps can be synchronous or asynchronous and
 return a plain object or nothing. Returned properties are shallowly merged into

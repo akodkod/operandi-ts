@@ -97,14 +97,14 @@ test("middleware merges user input, output, and data with an action", async () =
       setOutput({ length: input.message.length })
     })
 
-  expect(await action.run({ userId: 1, message: "hello" })).toEqual({
+  expect(await action.run({ userId: 1, message: "hello" })).toEqual<unknown>({
     input: { userId: 1, message: "hello" },
     output: { authenticated: true, length: 5 },
   })
 
   expect(events).toEqual(["user 1", "1: hello"])
 
-  expect(await withUser.run({ userId: 2 })).toEqual({
+  expect(await withUser.run({ userId: 2 })).toEqual<unknown>({
     input: { userId: 2 },
     output: { authenticated: true },
   })
@@ -181,7 +181,7 @@ test("composes nested and multiple middleware across schema libraries", async ()
       order.push("action")
     })
 
-  expect(await action.run({ userId: 1, workspaceId: 2, message: "hi" })).toEqual({
+  expect(await action.run({ userId: 1, workspaceId: 2, message: "hi" })).toEqual<unknown>({
     input: { userId: 1, workspaceId: 2, message: "hi" },
     output: { audited: true },
   })
@@ -223,7 +223,7 @@ test("isolates transformed inputs and outputs; later fields win in the action", 
       setOutput({ value: true })
     })
 
-  expect(await action.run({ value: "42" })).toEqual({
+  expect(await action.run({ value: "42" })).toEqual<unknown>({
     input: { value: 2 },
     output: { value: true },
   })
@@ -310,7 +310,7 @@ test("middleware can be reused, branched, and executed concurrently", async () =
       second.run({ userId: 2 }),
       base.run({ userId: 3 }),
     ]),
-  ).toEqual([
+  ).toEqual<unknown>([
     { input: { userId: 1 }, output: { userId: 1, tag: "first" } },
     { input: { userId: 2 }, output: { userId: 2, tag: "second" } },
     { input: { userId: 3 }, output: { userId: 3 } },
@@ -339,5 +339,5 @@ test("schema-less middleware and middleware-only actions work", async () => {
         ),
       )
       .run({ userId: 1 }),
-  ).toEqual({ input: { userId: 1 }, output: undefined })
+  ).toEqual<unknown>({ input: { userId: 1 }, output: undefined })
 })

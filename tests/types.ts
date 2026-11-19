@@ -1,4 +1,5 @@
-import { createAction, createActionMiddleware, type OperationResult } from "../src/index"
+// prettier-ignore
+import { createAction, createActionMiddleware, isOperationResult, type OperationResult } from "../src/index"
 import { z } from "zod"
 
 type Equal<A, B> =
@@ -30,6 +31,33 @@ const operation = createAction()
   })
 
 assertType<Equal<ReturnType<typeof operation.run>, Promise<OperationResult<number, string>>>>()
+
+async function checkResultIdentification(value: unknown) {
+  if (isOperationResult(value)) {
+    assertType<Equal<typeof value, OperationResult<unknown, unknown>>>()
+  }
+
+  const result = await operation.run("42")
+
+  if (isOperationResult(result)) {
+    assertType<Equal<typeof result.input, number>>()
+    assertType<Equal<typeof result.output, string>>()
+  }
+
+  const safe = await operation.runSafe("42")
+
+  if (isOperationResult(safe)) {
+    assertType<Equal<typeof safe.input, number>>()
+    assertType<Equal<typeof safe.output, string>>()
+    assertType<Equal<typeof safe.error, undefined>>()
+  }
+
+  // @ts-expect-error Plain objects lack the internal result brand
+  const unbranded: OperationResult<number, string> = { input: 42, output: "42" }
+  void unbranded
+}
+
+void checkResultIdentification
 // @ts-expect-error Input is required
 operation.run()
 // @ts-expect-error Caller passes schema input, not transformed number

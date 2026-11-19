@@ -1,5 +1,6 @@
 // prettier-ignore
 import type { DeclaredError, ErrorFactories, ErrorMap, HookError, StepError, UnexpectedError, ValidationError } from "./errors"
+import type { operationResultBrand } from "./runtime/result"
 import type { StandardSchemaV1 } from "@standard-schema/spec"
 type Schema = StandardSchemaV1
 type MaybePromise<T> = T | PromiseLike<T>
@@ -39,6 +40,7 @@ export type StepContext<Input, Data, Output, E extends ErrorMap = Empty> = {
 /** Validated values from a completed run, including middleware contributions */
 // eslint-disable-next-line typescript/consistent-type-definitions -- Preserve the public declaration-merging contract
 export interface OperationResult<Input, Output> {
+  readonly [operationResultBrand]: true
   readonly input: Input
   readonly output: Output
 }

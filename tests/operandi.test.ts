@@ -44,7 +44,7 @@ describe("createAction", () => {
         setOutput({ success: true })
       })
 
-    expect(await operation.run({ userId: 1, workspaceId: 2 })).toEqual({
+    expect(await operation.run({ userId: 1, workspaceId: 2 })).toEqual<unknown>({
       input: { userId: 1, workspaceId: 2 },
       output: { success: true },
     })
@@ -65,7 +65,7 @@ describe("createAction", () => {
           return setOutput(input)
         })
 
-      expect(await op.run({ name: "Ada" })).toEqual({
+      expect(await op.run({ name: "Ada" })).toEqual<unknown>({
         input: { name: "Ada" },
         output: { name: "Ada" },
       })
@@ -82,7 +82,7 @@ describe("createAction", () => {
         return setOutput(input * 2)
       })
 
-    expect(await op.run("21")).toEqual({ input: 21, output: "42" })
+    expect(await op.run("21")).toEqual<unknown>({ input: 21, output: "42" })
   })
 
   test("awaits asynchronous standard schema validation", async () => {
@@ -105,7 +105,7 @@ describe("createAction", () => {
           return setOutput(input)
         })
         .run("abc"),
-    ).toEqual({ input: 3, output: 3 })
+    ).toEqual<unknown>({ input: 3, output: 3 })
   })
 
   test("fails before steps on invalid input and validates missing output", async () => {
@@ -132,7 +132,7 @@ describe("createAction", () => {
       phase: "output",
     })
 
-    expect(await createAction().output(z.string().default("default")).run()).toEqual({
+    expect(await createAction().output(z.string().default("default")).run()).toEqual<unknown>({
       input: undefined,
       output: "default",
     })
@@ -171,7 +171,7 @@ describe("createAction", () => {
       return setOutput(data.count + 2)
     })
 
-    expect(await Promise.all([first.run(1), second.run(10), first.run(100)])).toEqual([
+    expect(await Promise.all([first.run(1), second.run(10), first.run(100)])).toEqual<unknown>([
       { input: 1, output: 2 },
       { input: 10, output: 12 },
       { input: 100, output: 101 },
@@ -194,7 +194,7 @@ describe("createAction", () => {
         expect(data.count).toBe("two")
       })
 
-    expect(await op.run()).toEqual({ input: undefined, output: undefined })
+    expect(await op.run()).toEqual<unknown>({ input: undefined, output: undefined })
   })
 
   test("rejects invalid runtime returns and blank names", async () => {
@@ -226,7 +226,7 @@ describe("createAction", () => {
         setOutput(2)
       })
 
-    expect(await op.run()).toEqual({ input: undefined, output: 2 })
+    expect(await op.run()).toEqual<unknown>({ input: undefined, output: 2 })
 
     await expect(
       createAction()
@@ -259,12 +259,12 @@ test("returns parsed defaults and stripped input with asynchronously transformed
 
   const rawInput = { extra: "stripped" }
   const result = await action.run(rawInput as { name?: string })
-  expect(result).toEqual({ input: { name: "Ada" }, output: "length: 3" })
+  expect(result).toEqual<unknown>({ input: { name: "Ada" }, output: "length: 3" })
   expect(rawInput).toEqual({ extra: "stripped" })
 })
 
 test("returns both properties when neither schema is configured", async () => {
   const result = await createAction().run()
-  expect(result).toEqual({ input: undefined, output: undefined })
+  expect(result).toEqual<unknown>({ input: undefined, output: undefined })
   expect(Object.keys(result)).toEqual(["input", "output"])
 })

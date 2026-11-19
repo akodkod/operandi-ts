@@ -66,7 +66,7 @@ test("runs all lifecycle phases in order and nests wrappers", async () => {
       setOutput(data.doubled)
     })
 
-  expect(await action.run(3)).toEqual({ input: 3, output: 6 })
+  expect(await action.run(3)).toEqual<unknown>({ input: 3, output: 6 })
 
   expect(events).toEqual([
     "outer enter",

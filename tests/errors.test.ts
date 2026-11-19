@@ -51,7 +51,7 @@ test("runSafe succeeds with the same input/output as run", async () => {
 
   expect(await action.runSafe(42)).toEqual({ ...(await action.run(42)), error: undefined })
 
-  expect(await createAction().runSafe()).toEqual({
+  expect(await createAction().runSafe()).toEqual<unknown>({
     input: undefined,
     output: undefined,
     error: undefined,

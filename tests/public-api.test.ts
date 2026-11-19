@@ -11,6 +11,7 @@ test("preserves the public runtime exports", () => {
       "ValidationError",
       "createAction",
       "createActionMiddleware",
+      "isOperationResult",
     ].sort(),
   )
 })

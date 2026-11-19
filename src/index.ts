@@ -1,4 +1,5 @@
 export { createAction, createActionMiddleware } from "./builder"
+export { isOperationResult } from "./runtime/result"
 export { OperandiError, UnexpectedError, HookError, ValidationError, StepError } from "./errors"
 export type { ErrorDefinition, ErrorMap, ErrorFactories, DeclaredError } from "./errors"
 
