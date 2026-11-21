@@ -2,6 +2,7 @@ import { operandiNames, type OperandiNamesOptions, OperandiNameType } from "../s
 import { expect, test } from "bun:test"
 import { build, createServer } from "vite"
 import { rejects } from "node:assert/strict"
+import { fileURLToPath } from "node:url"
 
 const imports = 'import { createAction, createActionMiddleware } from "operandi";\n'
 
@@ -170,6 +171,9 @@ test("runs in Vite development and production pipelines", async () => {
   const server = await createServer({
     configFile: false,
     plugins,
+    resolve: {
+      alias: { operandi: fileURLToPath(new URL("../src/index.ts", import.meta.url)) },
+    },
     server: { middlewareMode: true, watch: null, hmr: false, ws: false },
   })
 
